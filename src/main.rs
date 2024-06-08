@@ -1,31 +1,26 @@
 use textgraph::graph;
+use textgraph::parseopts::parseopts;
 
 fn main() {
-    let mut line: Vec<f64> = Vec::new();
-    let mut marks: Vec<f64> = Vec::new();
-    for i in 0..500 {
-        line.push((i as f64 * std::f64::consts::PI / 120.0).sin());
-        marks.push(i as f64);
+    let opts = parseopts();
+
+    let mut y_values: Vec<f64> = Vec::new();
+    let mut x_values: Vec<f64> = Vec::new();
+    for i in 0..600 {
+        y_values.push((i as f64 * std::f64::consts::PI / 120.0).sin());
+        x_values.push(i as f64);
     }
 
-    // Choose one of the methods based on sample speed:
-    //let downsampled_data = graph::downsample(&line, 100);
-    let interpolated_data = graph::interpolate(&line, &marks, 100);
+    //let y_values: [f64; 6] = [1.0, 10.0, 40.0, 0.0, 30.0, 15.0];
+    //let x_values: [f64; 6] = [1.0, 2.0,  3.0,  4.0, 5.0,  6.0];
 
+    let graph_options: textgraph::graph::GraphOptions = (&opts).into();
+    let g = match opts.graph_type {
+        textgraph::parseopts::GraphType::Ascii => {
+            graph::ascii(&y_values, &x_values, &graph_options)
+        }
+        textgraph::parseopts::GraphType::Star => graph::star(&y_values, &x_values, &graph_options),
+    };
 
-    //let processed_data = if marks.windows(2).all(|w| w[1] - w[0] == w[0] - w[1]) {
-    //    downsample(&series, options.width)
-    //} else {
-    //    interpolate(&series, &marks, options.width)
-    //};
-
-
-    let g = graph::ascii_trailing(
-        &interpolated_data,
-        &graph::GraphOptions {
-            width: 100.0,
-            height: 30.0,
-        },
-    );
     println!("{}", g);
 }
