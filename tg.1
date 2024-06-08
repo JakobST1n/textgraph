@@ -1,0 +1,38 @@
+.TH TG 1 2024-06-08
+.SH name
+tg \- TermGraph \- Text graphing utility
+.SH SYNOPSIS
+.B tg
+[-a|--axis] [-l|--last-n \fIN\fR] [-h|--height \fIN\fR] [-w|--width \fIN\fR] [-t \fItype\fR] [--interpolate]
+
+.SH DESCRIPTION
+.B tg
+TermGraph is a utility for graphing
+
+.SH OPTIONS
+.IP "\fB-h, --help\fR"
+Display help information.
+
+.IP "\fB-a, --axis\fR"
+Enable axis on the resulting graph.
+
+.IP "\fB-w, --width\fR \fIwidth\fR"
+Specify a width for the output. 
+If not specified, it will attempt to determine the TTY width and use that.
+If it cannot be automatically determined, it will fail.
+
+.IP "\fB-h, --height\fR \fIheight\fR"
+Specify a height for the output. 
+If not specified, it will attempt to determine the TTY height and use that.
+If it cannot be automatically determined, it will fail.
+
+.SH EXAMPLES
+
+The simplest version is if you have a text file of values
+.PP
+.nf
+.RS
+cat \fIfile\fR | tg --axis
+.RE
+.fi
+.PP

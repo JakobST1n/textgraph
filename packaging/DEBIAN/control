@@ -1,0 +1,5 @@
+Package: textgraph
+Version: 0.1.0
+Maintainer: jakobst1n
+Architecture: all
+Description: Text graphing utility
