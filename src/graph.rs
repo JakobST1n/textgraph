@@ -15,9 +15,12 @@ pub struct GraphOptions {
     pub axis: bool,
 }
 
-/**
- * Simply downsample, not the most correct way, but will likely not be too bad.
- */
+/// Simply downsample, not the most correct way, but will likely not be too bad.
+///
+/// # Arguments
+///
+/// * `y_values` - The y values that should be downsampled
+/// * `column_count` - Desired resolution of the output
 pub fn downsample(y_values: &[f64], column_count: usize) -> Vec<f64> {
     let factor = y_values.len() as f64 / column_count as f64;
     (0..column_count)
@@ -25,9 +28,13 @@ pub fn downsample(y_values: &[f64], column_count: usize) -> Vec<f64> {
         .collect()
 }
 
-/**
- * A better way to downsize, heavier and more complex, but should be used when sample speed is uneven.
- */
+/// A better way to downsize, heavier and more complex, but should be used when sample speed is uneven.
+///
+/// # Arguments
+///
+/// * `y_values` - The y values that should be downsampled
+/// * `x_values` - X values, needed to interpolate while keeping sample distance
+/// * `column_count` - Desired resolution of the output
 pub fn interpolate(y_values: &[f64], x_values: &[f64], column_count: usize) -> Vec<f64> {
     let min_x = x_values.iter().cloned().fold(f64::INFINITY, f64::min);
     let max_x = x_values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
@@ -51,9 +58,12 @@ pub fn interpolate(y_values: &[f64], x_values: &[f64], column_count: usize) -> V
     interpolated_data
 }
 
-/**
- * Scale a value to a new scale, useful for y values which needs to be scaled to fit within a size
- */
+/// Scale a value to a new scale, useful for y values which needs to be scaled to fit within a size
+///
+/// # Arguments
+/// 
+/// * `values` - The values to scale to a new height
+/// * `row_count` - The desired range of the new values (0 -> row_count)
 fn scale(values: &[f64], row_count: usize) -> Vec<usize> {
     let min_value = values.iter().cloned().fold(f64::INFINITY, f64::min);
     let max_value = values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
@@ -64,6 +74,15 @@ fn scale(values: &[f64], row_count: usize) -> Vec<usize> {
         .collect()
 }
 
+/// Prepare the values of a graph before graphing
+/// by applying scaling and interpolation/downscaling
+///
+/// # Arguments
+/// 
+/// * `x_values` - Values of the x-axis, needed for interpolation
+/// * `y_values` - Graph values
+/// * `graph` - The graph object, needed for knowing the information about width and height
+/// * `options` - GraphOptions, used for forced interpolation
 pub fn prepare(
     y_values: &[f64],
     x_values: &[f64],
@@ -85,6 +104,13 @@ pub fn prepare(
     scaled_data
 }
 
+/// Draw a graph using * for the pixels of the graph
+///
+/// # Arguments
+/// 
+/// * `x_values` - Values of the x-axis
+/// * `y_values` - Graph values
+/// * `options` - GraphOptions, used for forced interpolation
 pub fn star(y_values: &[f64], x_values: &[f64], options: &GraphOptions) -> String {
     let mut graph = GraphCanvas::new(options.width as usize, options.height as usize);
     if options.axis {
@@ -107,6 +133,13 @@ pub fn star(y_values: &[f64], x_values: &[f64], options: &GraphOptions) -> Strin
     graph.to_string()
 }
 
+/// Draw a graph using somewhat pretty ascii characters for pixels of the graph
+///
+/// # Arguments
+/// 
+/// * `x_values` - Values of the x-axis
+/// * `y_values` - Graph values
+/// * `options` - GraphOptions, used for forced interpolation
 pub fn ascii(y_values: &[f64], x_values: &[f64], options: &GraphOptions) -> String {
     let mut graph = GraphCanvas::new_default(
         GraphPixel::Blank,
