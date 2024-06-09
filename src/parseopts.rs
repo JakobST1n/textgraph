@@ -164,6 +164,8 @@ pub fn parseopts() -> Opts {
     let mut it = std::env::args();
     let progname = it.next().expect("TG1");
 
+    let mut pos_arg = 0;
+
     while let Some(mut arg) = it.next() {
         if arg.starts_with("--") {
             arg.remove(0);
@@ -197,11 +199,21 @@ pub fn parseopts() -> Opts {
                     }
                 }
             }
+        } else {
+            match pos_arg {
+                0 => {
+                    opts.in_file = Some(arg);
+                },
+                _ => {
+                    println!("No positional argument expected at position {} (\"{}\")", pos_arg, arg);
+                    parseopts_panic!(progname);
+                }
+            }
+            pos_arg += 1;
         }
 
     }
 
-    opts.in_file = it.next();
 
     return opts;
 }
