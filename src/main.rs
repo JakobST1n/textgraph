@@ -1,15 +1,35 @@
 use std::io::{self, BufRead, Write};
 use std::str::FromStr;
-use textgraph::graph;
-use textgraph::parseopts::{parseopts, Opts};
+use textgraph::graph::GraphBuilder;
+use textgraph::parseopts::{parseopts, OptsBuilder};
+
+/// Build a graph text string, based on values and a OptsBuilder
+///
+/// # Arguments
+///
+/// * `opts` -  textgraph::parseopts::OptBuilder
+fn build_graph(x_values: &Vec<f64>, y_values: &Vec<f64>, opts: &OptsBuilder) -> String {
+    let opts = opts.clone().build();
+
+    let mut gb = GraphBuilder::new(&x_values, &y_values, opts.width, opts.height);
+    gb.axis(!opts.silent);
+    gb.graph_type(opts.graph_type.clone());
+    if opts.cut {
+        gb.cut_overflow(true);
+    } else if let Some(n) = opts.last_n {
+        gb.keep_tail(n as usize);
+    }
+
+    gb.build()
+}
 
 /// Will graph what comes in through stdin,
 /// For each new line, the graph will be re-drawn.
 ///
 /// # Arguments
 ///
-/// * `opts` -  textgraph::parseopts::Opts
-fn filter(opts: Opts) {
+/// * `opts` -  textgraph::parseopts::OptBuilder
+fn filter(opts: OptsBuilder) {
     //print!("\x1b[?1049h");
 
     let mut x_values: Vec<f64> = Vec::new();
@@ -25,15 +45,8 @@ fn filter(opts: Opts) {
         y_values.push(y);
         x_values.push(i);
 
-        let mut gb = graph::GraphBuilder::new(&x_values, &y_values, opts.width, opts.height);
-        gb.axis(!opts.silent);
-        gb.graph_type(opts.graph_type.clone());
-        if let Some(n) = opts.last_n {
-            gb.keep_tail(n as usize);
-        }
-
         //print!("\x1B[2J\x1B[H");
-        println!("{}", gb.build());
+        println!("{}", build_graph(&x_values, &y_values, &opts));
     }
 
     //print!("\x1B[?1049l");
@@ -46,8 +59,8 @@ fn filter(opts: Opts) {
 ///
 /// # Arguments
 ///
-/// * `opts` -  textgraph::parseopts::Opts
-fn graph_file(opts: Opts) {
+/// * `opts` -  textgraph::parseopts::OptBuilder
+fn graph_file(opts: OptsBuilder) {
     let raw_y_values = std::fs::read_to_string(opts.in_file.clone().unwrap()).expect("TG6");
 
     let mut y_values: Vec<f64> = Vec::new();
@@ -57,13 +70,7 @@ fn graph_file(opts: Opts) {
         x_values.push(i as f64);
     }
 
-    let mut gb = graph::GraphBuilder::new(&x_values, &y_values, opts.width, opts.height);
-    gb.axis(!opts.silent);
-    gb.graph_type(opts.graph_type);
-    if let Some(n) = opts.last_n {
-        gb.keep_tail(n as usize);
-    }
-    println!("{}", gb.build());
+    println!("{}", build_graph(&x_values, &y_values, &opts));
 }
 
 /// Main entry point for the binary of textgraph

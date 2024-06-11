@@ -47,6 +47,8 @@ pub enum GraphType {
     Star,
     /// Use pretty characters from the ascii range
     Ascii,
+    /// Draw using braille unicode characters
+    Braille,
 }
 
 impl std::default::Default for GraphType {
@@ -80,6 +82,8 @@ pub struct GraphBuilder {
     enable_axis: bool,
     /// Which GraphType to use when the graph is drawn
     graph_type: GraphType,
+    /// Special case of running keep_tail once
+    cut_overflow: bool,
 }
 
 impl GraphBuilder {
@@ -102,6 +106,7 @@ impl GraphBuilder {
             y_values: y_values.to_vec(),
             enable_axis: false,
             graph_type: GraphType::default(),
+            cut_overflow: false,
         }
     }
 
@@ -131,10 +136,26 @@ impl GraphBuilder {
         self
     }
 
+    /// Enable cutting overflow, this works differently to keep_tail directly,
+    /// as the axis-calculations must be performed first.
+    /// So keep_tail is run once first, so we can keep a approximate window,
+    /// and then another time to get it exactly right.
+    ///
+    /// # Arguments
+    ///
+    pub fn cut_overflow(&mut self, enable: bool) -> &Self {
+        self.cut_overflow = enable;
+        self
+    }
+
     /// Build the actual graph,
     /// this is potentially a heavy operation, and it will mutate &self!
     /// If you want to only see the "current state", you should clone first!
     pub fn build(&mut self) -> String {
+        if self.cut_overflow {
+            self.keep_tail(self.draw_width);
+        }
+
         //let min_x = self.x_values.iter().cloned().fold(f64::INFINITY, f64::min);
         //let max_x = self
         //    .x_values
@@ -161,6 +182,11 @@ impl GraphBuilder {
             );
         }
 
+        // Run a second time after axis has been calculated properly
+        if self.cut_overflow {
+            self.keep_tail(self.draw_width);
+        }
+
         if true {
             // && x_values.windows(2).all(|w| w[1] - w[0] == w[0] - w[1]) {
             if self.y_values.len() >= self.draw_width {
@@ -181,6 +207,7 @@ impl GraphBuilder {
         match self.graph_type {
             GraphType::Star => self.draw_star(),
             GraphType::Ascii => self.draw_ascii(),
+            GraphType::Braille => self.draw_braille(),
         }
 
         self.to_string()
@@ -256,28 +283,40 @@ impl GraphBuilder {
         c5: GraphPixel<char>,
         c6: GraphPixel<char>,
     ) {
-        if self.height < 2 || self.width < 2 {
-            return;
-        }
+        let mut y_ticks: Vec<String> = Vec::with_capacity(self.height);
+        let mut x_offset: usize = 0;
         for i in 0..self.height {
-            self.elements[i * self.width] = c1.clone();
-            self.elements[i * self.width + self.width - 1] = c1.clone();
+            let n = (min_y + (((max_y - min_y) / (self.height as f64 - 1.0)) * i as f64))
+                .round()
+                .to_string();
+            if n.len() > x_offset {
+                x_offset = n.len();
+            }
+            y_ticks.insert(0, n);
         }
-        for i in 1..self.width - 1 {
+
+        for i in 0..self.height {
+            self.elements[i * self.width + x_offset] = c1.clone();
+            self.elements[i * self.width + self.width - 1] = c1.clone();
+            for (j, c) in y_ticks[i].chars().enumerate() {
+                self.elements[i * self.width + j] = GraphPixel::Normal(c);
+            }
+        }
+        for i in 1 + x_offset..self.width - 1 {
             self.elements[i] = c2.clone();
             self.elements[(self.height - 1) * self.width + i] = c2.clone();
         }
-        self.elements[0] = c4.clone();
+        self.elements[x_offset] = c4.clone();
         self.elements[self.width - 1] = c6.clone();
-        self.elements[(self.height - 1) * self.width] = c3.clone();
+        self.elements[(self.height - 1) * self.width + x_offset] = c3.clone();
         self.elements[self.height * self.width - 1] = c5.clone();
         if self.draw_height > 2 {
             self.draw_height = self.height - 2;
         }
         if self.draw_width > 2 {
-            self.draw_width = self.width - 2;
+            self.draw_width = self.width - 2 - x_offset;
         }
-        self.col_offset = 1;
+        self.col_offset = x_offset + 1;
         self.row_offset = 1;
     }
 
@@ -293,7 +332,7 @@ impl GraphBuilder {
     pub fn draw_ascii(&mut self) {
         if self.enable_axis {
             self.draw_exact(
-                0,
+                self.col_offset - 1,
                 self.draw_height - self.y_values[0] as usize,
                 GraphPixel::Green('├'),
             );
@@ -328,6 +367,11 @@ impl GraphBuilder {
             }
         }
     }
+
+    /// Draw a graph using * for the pixels of the graph
+    fn draw_braille(&mut self) {
+        unimplemented!("The braille mode is not implemented");
+    }
 }
 
 // /// A better way to downsize, heavier and more complex, but should be used when sample speed is uneven.
@@ -358,33 +402,4 @@ impl GraphBuilder {
 //     }
 //
 //     interpolated_data
-// }
-
-//const _BRAILLE_1: char = '⣿';
-//const BRAILLE_1_0: char = '⡀';
-//const BRAILLE_1_1: char = '⣀';
-//const BRAILLE_1_2: char = '⣀';
-//const BRAILLE_2_0: char = '⡄';
-//const BRAILLE_3_0: char = '⡆';
-//const BRAILLE_4_0: char = '⡇';
-// pub fn braille(y_values: &Vec<f64>, options: &GraphOptions) -> String {
-//     let aspects = SeriesAspects::from(y_values);
-//     let canvas = String::with_capacity((options.width * options.height) as usize);
-//
-//     /*
-//     r = (max - min)
-//     r' = (max' - min')
-//     y' = (((y - min) * r') / r) + min'
-//     */
-//     let r = aspects.max - aspects.min;
-//     let r_marked = options.height;
-//
-//     let norm_after = options.height;
-//
-//     //for (x, y) in y_values.iter().enumerate() {
-//     //    let y = norm(y.clone(), 0.0, options.height);
-//     //    let x = norm(x.clone(), 0.0, options.width);
-//     //}
-//
-//     String::from("")
 // }

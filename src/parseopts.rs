@@ -13,28 +13,26 @@ pub struct Opts {
     pub silent: bool,
     /// Specify if it is used as a filter, and you only want to look at the last N samples
     pub last_n: Option<u64>,
+    /// Special case of last_n, which will use window_with as a target.
+    pub cut: bool,
     /// Read from the specified file, instead of reading continously from stdin
     pub in_file: Option<String>,
 }
 
 /// Struct containing command line options
+#[derive(Clone)]
 pub struct OptsBuilder {
-    /// Desired width of graph, if None, it should be automatically determined
     pub width: Option<usize>,
-    /// Desired height of graph, if None, it should be automatically determined
     pub height: Option<usize>,
-    /// Which type of graph it should be, ascii, star
     pub graph_type: GraphType,
-    /// This will disable distracting elements, such as axis
     pub silent: bool,
-    /// Specify if it is used as a filter, and you only want to look at the last N samples
     pub last_n: Option<u64>,
-    /// Read from the specified file, instead of reading continously from stdin
+    pub cut: bool,
     pub in_file: Option<String>,
 }
 
 impl OptsBuilder {
-    fn build(self) -> Opts {
+    pub fn build(self) -> Opts {
         Opts {
             width: self.width.unwrap_or_else(|| {
                 if let Ok((width, _)) = crate::term::get_terminal_size() {
@@ -56,6 +54,7 @@ impl OptsBuilder {
             silent: self.silent,
             last_n: self.last_n,
             in_file: self.in_file,
+            cut: self.cut,
         }
     }
 }
@@ -96,6 +95,9 @@ pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progna
                 "ascii" => {
                     opts.graph_type = GraphType::Ascii;
                 }
+                "braille" => {
+                    opts.graph_type = GraphType::Braille;
+                }
                 t => {
                     println!(
                         "Unknown type \"{}\", valid options are \"star\", \"ascii\".",
@@ -116,7 +118,7 @@ pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progna
             };
             opts.height = Some(height);
         }
-        "l" | "last-n" => {
+        "n" | "last-n" => {
             let Some(last_n) = value else {
                 println!("Missing value for {}", arg);
                 parseopts_panic!(progname);
@@ -129,6 +131,12 @@ pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progna
         }
         "s" | "silent" => {
             opts.silent = true;
+        }
+        "a" | "ascii" => {
+            opts.graph_type = GraphType::Ascii;
+        }
+        "c" | "cut" => {
+            opts.cut = true;
         }
         "w" | "width" => {
             let Some(width) = value else {
@@ -153,13 +161,14 @@ pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progna
 /// of unix style command line arguments.
 /// This function is specialised for the TextGraph program,
 /// but is easily adaptable for other programs as well.
-pub fn parseopts() -> Opts {
+pub fn parseopts() -> OptsBuilder {
     let mut opts = OptsBuilder {
         width: None,
         height: None,
         graph_type: GraphType::Star,
         silent: false,
         last_n: None,
+        cut: false,
         in_file: None,
     };
 
@@ -193,7 +202,7 @@ pub fn parseopts() -> Opts {
             arg.remove(0);
             for arg_name in arg.chars() {
                 match arg_name {
-                    'h' | 't' | 'w' | 'l' => {
+                    'h' | 't' | 'w' | 'n' => {
                         parseopt(&mut opts, &arg_name.to_string(), it.next(), &progname);
                     }
                     _ => {
@@ -218,5 +227,5 @@ pub fn parseopts() -> Opts {
         }
     }
 
-    return opts.build();
+    return opts;
 }

@@ -16,6 +16,19 @@ Display help information.
 .IP "\fB-s, --silent\fR"
 Disable distracting elements, such as axis and non-graph text.
 
+.IP "\fB-a, --ascii\fR"
+Shorthand for -t ascii, if multiple options setting mode is specified, 
+the last will likely be respected.
+
+.IP "\fB-n, --last-n\fR \fIcount\fR"
+If specified, only the newest \fIcount\fR samples will be plotted.
+This can be useful if you want to follow the latest state of a graph that is piped in.
+
+
+.IP "\fB-c, --cut\fR"
+This is a special case of \fB--last-n\fR. Where the number of columns 
+\fB--width\fI will be used for the count.
+
 .IP "\fB-t\fR \fItype\fR"
 The type of graph to draw,
 it defaults to \fBstar\fR, which is the fastest one.
