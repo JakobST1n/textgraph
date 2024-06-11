@@ -41,7 +41,7 @@ impl<T: std::fmt::Display> std::fmt::Display for GraphPixel<T> {
 }
 
 /// Available options for how the graph should look
-#[derive(Clone)]
+#[derive(PartialEq, Clone)]
 pub enum GraphType {
     /// Use only * symbols
     Star,
@@ -153,7 +153,11 @@ impl GraphBuilder {
     /// If you want to only see the "current state", you should clone first!
     pub fn build(&mut self) -> String {
         if self.cut_overflow {
-            self.keep_tail(self.draw_width);
+            if self.graph_type == GraphType::Braille {
+                self.keep_tail(self.draw_width * 2);
+            } else {
+                self.keep_tail(self.draw_width);
+            }
         }
 
         //let min_x = self.x_values.iter().cloned().fold(f64::INFINITY, f64::min);
@@ -184,7 +188,11 @@ impl GraphBuilder {
 
         // Run a second time after axis has been calculated properly
         if self.cut_overflow {
-            self.keep_tail(self.draw_width);
+            if self.graph_type == GraphType::Braille {
+                self.keep_tail(self.draw_width * 2);
+            } else {
+                self.keep_tail(self.draw_width);
+            }
         }
 
         if true {
@@ -199,7 +207,11 @@ impl GraphBuilder {
         };
 
         // Scale the data
-        let scale_factor = (self.draw_height - 1) as f64 / (max_y - min_y);
+        let mut scale_height = self.draw_height;
+        if self.graph_type == GraphType::Braille {
+            scale_height = self.draw_height * 3;
+        }
+        let scale_factor = (scale_height - 1) as f64 / (max_y - min_y);
         for i in 0..self.y_values.len() {
             self.y_values[i] = ((self.y_values[i] - min_y) * scale_factor).round();
         }
@@ -217,13 +229,23 @@ impl GraphBuilder {
     // with the x values.
     // Make sure to only use one downsampling-algorithm
     fn downsample(&mut self) {
-        let factor = self.y_values.len() as f64 / self.draw_width as f64;
-        let mut new_values = Vec::with_capacity(self.draw_width);
-        for i in 0..self.draw_width {
-            let new_value = self.y_values[(i as f64 * factor) as usize];
-            new_values.push(new_value);
+        if self.graph_type == GraphType::Braille {
+            let factor = self.y_values.len() as f64 / (self.draw_width as f64 * 2.0);
+            let mut new_values = Vec::with_capacity(self.draw_width * 2);
+            for i in 0..self.draw_width * 2 {
+                let new_value = self.y_values[(i as f64 * factor) as usize];
+                new_values.push(new_value);
+            }
+            self.y_values = new_values;
+        } else {
+            let factor = self.y_values.len() as f64 / self.draw_width as f64;
+            let mut new_values = Vec::with_capacity(self.draw_width);
+            for i in 0..self.draw_width {
+                let new_value = self.y_values[(i as f64 * factor) as usize];
+                new_values.push(new_value);
+            }
+            self.y_values = new_values;
         }
-        self.y_values = new_values;
     }
 
     /// Turn canvas into a string
@@ -370,7 +392,56 @@ impl GraphBuilder {
 
     /// Draw a graph using * for the pixels of the graph
     fn draw_braille(&mut self) {
-        unimplemented!("The braille mode is not implemented");
+        let mut i = 0;
+        let mut x = 0;
+        while i < self.y_values.len() - 1 {
+            let y1 = (self.draw_height * 3) - (self.y_values[i] as usize) - 1;
+            let y1_abs = y1 / 3;
+            let y2 = (self.draw_height * 3) - (self.y_values[i + 1] as usize) - 1;
+            let y2_abs = y2 / 3;
+
+            if y1_abs == y2_abs {
+                let px = match (y1 % 3, y2 % 3) {
+                    (0, 0) => ' ',
+                    (0, 1) => '⠠',
+                    (0, 2) => '⠐',
+                    (0, 3) => '⠈',
+                    (1, 0) => '⠄',
+                    (1, 1) => '⠤',
+                    (1, 2) => '⠔',
+                    (1, 3) => '⠌',
+                    (2, 0) => '⠂',
+                    (2, 1) => '⠢',
+                    (2, 2) => '⠒',
+                    (2, 3) => '⠊',
+                    (3, 0) => '⠁',
+                    (3, 1) => '⠡',
+                    (3, 2) => '⠑',
+                    (3, 3) => '⠉',
+                    _ => '?',
+                };
+                self.draw(x, y1_abs, GraphPixel::Normal(px));
+            } else {
+                let px = match y1 % 3 {
+                    0 => ' ',
+                    1 => '⠄',
+                    2 => '⠂',
+                    3 => '⠁',
+                    _ => '?',
+                };
+                self.draw(x, y1_abs, GraphPixel::Normal(px));
+                let px = match y2 % 3 {
+                    0 => ' ',
+                    1 => '⠠',
+                    2 => '⠐',
+                    3 => '⠈',
+                    _ => '?',
+                };
+                self.draw(x, y2_abs, GraphPixel::Normal(px));
+            }
+            i += 2;
+            x += 1;
+        }
     }
 }
 

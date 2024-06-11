@@ -65,7 +65,7 @@ impl OptsBuilder {
 macro_rules! parseopts_panic {
     ($progname:expr) => {
         println!(
-            "Usage: {} [-h|--height <height>] [-w|--width <width>] [-t <star|ascii>]",
+            "Usage: {} [-h|--height <height>] [-w|--width <width>] [-t <star|ascii|braille>]",
             $progname
         );
         std::process::exit(1);
@@ -100,7 +100,7 @@ pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progna
                 }
                 t => {
                     println!(
-                        "Unknown type \"{}\", valid options are \"star\", \"ascii\".",
+                        "Unknown type \"{}\", valid options are \"star\", \"ascii\" and \"braille\".",
                         t
                     );
                     parseopts_panic!(progname);
@@ -134,6 +134,9 @@ pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progna
         }
         "a" | "ascii" => {
             opts.graph_type = GraphType::Ascii;
+        }
+        "b" | "braille" => {
+            opts.graph_type = GraphType::Braille;
         }
         "c" | "cut" => {
             opts.cut = true;
