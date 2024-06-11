@@ -3,6 +3,30 @@ use std::str::FromStr;
 use textgraph::graph::GraphBuilder;
 use textgraph::parseopts::{parseopts, OptsBuilder};
 
+extern "C" fn handle_sigint(_sig: i32) {
+    print!("\x1B[?1049l");
+    io::stdout().flush().unwrap();
+    std::process::exit(0);
+}
+
+/// Set a signalhandler for swapping back to the the main screen on sigint
+fn set_filter_signalhandler() {
+    let mut sig_action: libc::sigaction = unsafe { std::mem::zeroed() };
+    sig_action.sa_flags = 0;
+    sig_action.sa_sigaction = handle_sigint as usize;
+
+    unsafe {
+        let mut signal_set = std::mem::zeroed();
+        libc::sigemptyset(&mut signal_set);
+        sig_action.sa_mask = signal_set;
+
+        libc::sigaction(libc::SIGINT, &sig_action, std::ptr::null_mut());
+        libc::sigaction(libc::SIGKILL, &sig_action, std::ptr::null_mut());
+        libc::sigaction(libc::SIGTSTP, &sig_action, std::ptr::null_mut());
+        libc::sigaction(libc::SIGSTOP, &sig_action, std::ptr::null_mut());
+    }
+}
+
 /// Build a graph text string, based on values and a OptsBuilder
 ///
 /// # Arguments
@@ -30,7 +54,8 @@ fn build_graph(x_values: &Vec<f64>, y_values: &Vec<f64>, opts: &OptsBuilder) -> 
 ///
 /// * `opts` -  textgraph::parseopts::OptBuilder
 fn filter(opts: OptsBuilder) {
-    //print!("\x1b[?1049h");
+    set_filter_signalhandler();
+    print!("\x1b[?1049h");
 
     let mut x_values: Vec<f64> = Vec::new();
     let mut y_values: Vec<f64> = Vec::new();
@@ -45,12 +70,9 @@ fn filter(opts: OptsBuilder) {
         y_values.push(y);
         x_values.push(i);
 
-        //print!("\x1B[2J\x1B[H");
+        print!("\x1B[2J\x1B[H");
         println!("{}", build_graph(&x_values, &y_values, &opts));
     }
-
-    //print!("\x1B[?1049l");
-    io::stdout().flush().unwrap();
 }
 
 /// Will graph the contents of a file

@@ -1,7 +1,7 @@
 # TextGraph
 
 A small terminal utility which displays graphs as plain text,
-with the goal of having no dependencies,
+with the goal of having few dependencies,
 being lightweight, and reasonably performant.
 
 It is meant to be used in a traditional unix way, 
