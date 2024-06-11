@@ -393,7 +393,6 @@ impl GraphBuilder {
     /// Draw a graph using * for the pixels of the graph
     fn draw_braille(&mut self) {
         let mut i = 0;
-        let mut x = 0;
         while i < self.y_values.len() - 1 {
             let y1 = (self.draw_height * 3) - (self.y_values[i] as usize) - 1;
             let y1_abs = y1 / 3;
@@ -402,45 +401,35 @@ impl GraphBuilder {
 
             if y1_abs == y2_abs {
                 let px = match (y1 % 3, y2 % 3) {
-                    (0, 0) => ' ',
-                    (0, 1) => '⠠',
-                    (0, 2) => '⠐',
-                    (0, 3) => '⠈',
-                    (1, 0) => '⠄',
-                    (1, 1) => '⠤',
-                    (1, 2) => '⠔',
-                    (1, 3) => '⠌',
-                    (2, 0) => '⠂',
-                    (2, 1) => '⠢',
-                    (2, 2) => '⠒',
-                    (2, 3) => '⠊',
-                    (3, 0) => '⠁',
-                    (3, 1) => '⠡',
-                    (3, 2) => '⠑',
-                    (3, 3) => '⠉',
+                    (0, 0) => '⠤',
+                    (0, 1) => '⠔',
+                    (0, 2) => '⠌',
+                    (1, 0) => '⠢',
+                    (1, 1) => '⠒',
+                    (1, 2) => '⠊',
+                    (2, 0) => '⠡',
+                    (2, 1) => '⠑',
+                    (2, 2) => '⠉',
                     _ => '?',
                 };
-                self.draw(x, y1_abs, GraphPixel::Normal(px));
+                self.draw(i / 2, y1_abs, GraphPixel::Normal(px));
             } else {
                 let px = match y1 % 3 {
-                    0 => ' ',
-                    1 => '⠄',
-                    2 => '⠂',
-                    3 => '⠁',
+                    0 => '⠄',
+                    1 => '⠂',
+                    2 => '⠁',
                     _ => '?',
                 };
-                self.draw(x, y1_abs, GraphPixel::Normal(px));
+                self.draw(i / 2, y1_abs, GraphPixel::Normal(px));
                 let px = match y2 % 3 {
-                    0 => ' ',
-                    1 => '⠠',
-                    2 => '⠐',
-                    3 => '⠈',
+                    0 => '⠠',
+                    1 => '⠐',
+                    2 => '⠈',
                     _ => '?',
                 };
-                self.draw(x, y2_abs, GraphPixel::Normal(px));
+                self.draw(i / 2, y2_abs, GraphPixel::Normal(px));
             }
             i += 2;
-            x += 1;
         }
     }
 }
