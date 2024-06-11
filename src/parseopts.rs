@@ -1,55 +1,61 @@
-use crate::graph::GraphOptions;
+use crate::graph::GraphType;
 use std::str::FromStr;
-
-/// Available options for how the graph should look
-pub enum GraphType {
-    /// Use only * symbols 
-    Star,
-    /// Use pretty characters from the ascii range
-    Ascii,
-}
 
 /// Struct containing command line options
 pub struct Opts {
     /// Desired width of graph, if None, it should be automatically determined
-    pub width: Option<u64>,
+    pub width: usize,
     /// Desired height of graph, if None, it should be automatically determined
-    pub height: Option<u64>,
+    pub height: usize,
     /// Which type of graph it should be, ascii, star
     pub graph_type: GraphType,
-    /// Wether to always interpolate, even if not nesecarry
-    pub interpolate: bool,
     /// Enable axis on the resulting graph, makes it a bit prettier
     pub axis: bool,
     /// Specify if it is used as a filter, and you only want to look at the last N samples
     pub last_n: Option<u64>,
-    /// Read from the specified file, instead of reading continously from stdin 
+    /// Read from the specified file, instead of reading continously from stdin
     pub in_file: Option<String>,
 }
 
-impl From<&Opts> for GraphOptions {
-    /// Convert from CLIOpts to GraphOptions,
-    /// This will do some magic, like find the terminal size if not specified, etc.
-    fn from(opts: &Opts) -> Self {
-        GraphOptions {
-            width: opts.width.unwrap_or_else(|| {
+/// Struct containing command line options
+pub struct OptsBuilder {
+    /// Desired width of graph, if None, it should be automatically determined
+    pub width: Option<usize>,
+    /// Desired height of graph, if None, it should be automatically determined
+    pub height: Option<usize>,
+    /// Which type of graph it should be, ascii, star
+    pub graph_type: GraphType,
+    /// Enable axis on the resulting graph, makes it a bit prettier
+    pub axis: bool,
+    /// Specify if it is used as a filter, and you only want to look at the last N samples
+    pub last_n: Option<u64>,
+    /// Read from the specified file, instead of reading continously from stdin
+    pub in_file: Option<String>,
+}
+
+impl OptsBuilder {
+    fn build(self) -> Opts {
+        Opts {
+            width: self.width.unwrap_or_else(|| {
                 if let Ok((width, _)) = crate::term::get_terminal_size() {
-                    width as u64
+                    width as usize
                 } else {
                     println!("Could not determine TTY columns, specify with -r");
                     std::process::exit(1);
                 }
             }),
-            height: opts.height.unwrap_or_else(|| {
+            height: self.height.unwrap_or_else(|| {
                 if let Ok((_, height)) = crate::term::get_terminal_size() {
-                    height as u64 - 1
+                    height as usize - 1
                 } else {
                     println!("Could not determine TTY rows, specify with -h");
                     std::process::exit(1);
                 }
             }),
-            interpolate: opts.interpolate,
-            axis: opts.axis,
+            graph_type: self.graph_type,
+            axis: self.axis,
+            last_n: self.last_n,
+            in_file: self.in_file,
         }
     }
 }
@@ -76,11 +82,8 @@ macro_rules! parseopts_panic {
 /// * `value` - Optionally the value of the option/argument. This function will panic if not
 ///             provided when it is required.
 /// * `progname` - The first argument of the program, this is used for error messages.
-pub fn parseopt(opts: &mut Opts, arg: &str, value: Option<String>, progname: &str) {
+pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progname: &str) {
     match arg {
-        "interpolate" => {
-            opts.interpolate = true;
-        }
         "t" => {
             let Some(graph_type) = value else {
                 println!("Missing value for {}", arg);
@@ -107,7 +110,7 @@ pub fn parseopt(opts: &mut Opts, arg: &str, value: Option<String>, progname: &st
                 println!("Missing value for {}", arg);
                 parseopts_panic!(progname);
             };
-            let Ok(height) = u64::from_str(&height) else {
+            let Ok(height) = usize::from_str(&height) else {
                 println!("Cannot parse integer from \"{}\"", height);
                 parseopts_panic!(progname);
             };
@@ -132,7 +135,7 @@ pub fn parseopt(opts: &mut Opts, arg: &str, value: Option<String>, progname: &st
                 println!("Missing value for {}", arg);
                 parseopts_panic!(progname);
             };
-            let Ok(width) = u64::from_str(&width) else {
+            let Ok(width) = usize::from_str(&width) else {
                 println!("Cannot parse integer from \"{}\"", width);
                 parseopts_panic!(progname);
             };
@@ -151,11 +154,10 @@ pub fn parseopt(opts: &mut Opts, arg: &str, value: Option<String>, progname: &st
 /// This function is specialised for the TextGraph program,
 /// but is easily adaptable for other programs as well.
 pub fn parseopts() -> Opts {
-    let mut opts = Opts {
+    let mut opts = OptsBuilder {
         width: None,
         height: None,
         graph_type: GraphType::Star,
-        interpolate: false,
         axis: false,
         last_n: None,
         in_file: None,
@@ -183,7 +185,7 @@ pub fn parseopts() -> Opts {
                     "widht" | "height" | "last-n" => {
                         arg_value = it.next();
                     }
-                    _ => ()
+                    _ => (),
                 }
             }
             parseopt(&mut opts, &arg_name, arg_value, &progname);
@@ -203,17 +205,18 @@ pub fn parseopts() -> Opts {
             match pos_arg {
                 0 => {
                     opts.in_file = Some(arg);
-                },
+                }
                 _ => {
-                    println!("No positional argument expected at position {} (\"{}\")", pos_arg, arg);
+                    println!(
+                        "No positional argument expected at position {} (\"{}\")",
+                        pos_arg, arg
+                    );
                     parseopts_panic!(progname);
                 }
             }
             pos_arg += 1;
         }
-
     }
 
-
-    return opts;
+    return opts.build();
 }

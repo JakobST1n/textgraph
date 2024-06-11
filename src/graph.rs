@@ -1,4 +1,5 @@
-use crate::graph_canvas::{GraphCanvas, GraphPixel};
+//use std::io::IsTerminal;
+//dbg!(std::io::stdout().is_terminal());
 
 const ASCII_0: char = '─';
 const ASCII_1: char = '│';
@@ -7,192 +8,331 @@ const ASCII_3: char = '╰';
 const ASCII_4: char = '╮';
 const ASCII_7: char = '╯';
 
-#[derive(Debug)]
-pub struct GraphOptions {
-    pub width: u64,
-    pub height: u64,
-    pub interpolate: bool,
-    pub axis: bool,
+#[derive(Clone)]
+#[allow(dead_code)]
+enum GraphPixel<T> {
+    Normal(T),
+    Green(T),
+    Blue(T),
+    Red(T),
+    Blank,
 }
 
-/// Simply downsample, not the most correct way, but will likely not be too bad.
-///
-/// # Arguments
-///
-/// * `y_values` - The y values that should be downsampled
-/// * `column_count` - Desired resolution of the output
-pub fn downsample(y_values: &[f64], column_count: usize) -> Vec<f64> {
-    let factor = y_values.len() as f64 / column_count as f64;
-    (0..column_count)
-        .map(|i| y_values[(i as f64 * factor) as usize])
-        .collect()
+impl<T> std::default::Default for GraphPixel<T> {
+    fn default() -> Self {
+        GraphPixel::Blank
+    }
 }
 
-/// A better way to downsize, heavier and more complex, but should be used when sample speed is uneven.
-///
-/// # Arguments
-///
-/// * `y_values` - The y values that should be downsampled
-/// * `x_values` - X values, needed to interpolate while keeping sample distance
-/// * `column_count` - Desired resolution of the output
-pub fn interpolate(y_values: &[f64], x_values: &[f64], column_count: usize) -> Vec<f64> {
-    let min_x = x_values.iter().cloned().fold(f64::INFINITY, f64::min);
-    let max_x = x_values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-    let step = (max_x - min_x) / (column_count as f64 - 1.0);
-    let mut interpolated_data = Vec::new();
+impl<T: std::fmt::Display> std::fmt::Display for GraphPixel<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                GraphPixel::Normal(c) => format!("{}", c),
+                GraphPixel::Green(c) => format!("\x1b[32m{}\x1b[0m", c),
+                GraphPixel::Blue(c) => format!("\x1b[33m{}\x1b[0m", c),
+                GraphPixel::Red(c) => format!("\x1b[31m{}\x1b[0m", c),
+                GraphPixel::Blank => String::from(" "),
+            }
+        )
+    }
+}
 
-    for i in 0..column_count {
-        let target_mark = min_x + i as f64 * step;
-        let mut j = 0;
-        while j < x_values.len() - 1 && x_values[j + 1] < target_mark {
-            j += 1;
+/// Available options for how the graph should look
+#[derive(Clone)]
+pub enum GraphType {
+    /// Use only * symbols
+    Star,
+    /// Use pretty characters from the ascii range
+    Ascii,
+}
+
+impl std::default::Default for GraphType {
+    fn default() -> Self {
+        GraphType::Star
+    }
+}
+
+/// Temporary variables used while building a graph
+#[allow(dead_code)]
+pub struct GraphBuilder {
+    /// A array of pixels, this will ultimately be turned to a string, is initialized to width * height
+    elements: Vec<GraphPixel<char>>,
+    /// Width of canvas
+    width: usize,
+    /// Height of canvas
+    height: usize,
+    /// Width of the area of the canvas left for the actual graph
+    draw_width: usize,
+    /// Height of the area of the canvas left for the actual graph
+    draw_height: usize,
+    /// x-offset for where the graph draw area begins
+    col_offset: usize,
+    /// y-offset for where the graph draw area begins
+    row_offset: usize,
+    /// The values of the x-axis of the graph
+    x_values: Vec<f64>,
+    /// The values of the y-axis of the graph
+    y_values: Vec<f64>,
+    /// Decides whether axis will be drawn on the resulting graph
+    enable_axis: bool,
+    /// Which GraphType to use when the graph is drawn
+    graph_type: GraphType,
+}
+
+impl GraphBuilder {
+    /// Create a new canvas with desired width and height
+    ///
+    /// # Arguments
+    ///
+    /// * `width` - Width of the output canvas
+    /// * `height` - Height of the output canvas
+    pub fn new(x_values: &[f64], y_values: &[f64], width: usize, height: usize) -> Self {
+        GraphBuilder {
+            elements: vec![GraphPixel::default(); width * height],
+            width,
+            height,
+            draw_width: width,
+            draw_height: height,
+            col_offset: 0,
+            row_offset: 0,
+            x_values: x_values.to_vec(),
+            y_values: y_values.to_vec(),
+            enable_axis: false,
+            graph_type: GraphType::default(),
         }
-        let t0 = x_values[j];
-        let t1 = x_values[j + 1];
-        let d0 = y_values[j];
-        let d1 = y_values[j + 1];
-        let value = d0 + (d1 - d0) * (target_mark - t0) / (t1 - t0);
-        interpolated_data.push(value);
     }
 
-    interpolated_data
-}
+    /// Enable or disable axis in output
+    pub fn axis(&mut self, enable_axis: bool) -> &Self {
+        self.enable_axis = enable_axis;
+        self
+    }
 
-/// Scale a value to a new scale, useful for y values which needs to be scaled to fit within a size
-///
-/// # Arguments
-/// 
-/// * `values` - The values to scale to a new height
-/// * `row_count` - The desired range of the new values (0 -> row_count)
-fn scale(values: &[f64], row_count: usize) -> Vec<usize> {
-    let min_value = values.iter().cloned().fold(f64::INFINITY, f64::min);
-    let max_value = values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-    let scale_factor = (row_count - 1) as f64 / (max_value - min_value);
-    values
-        .iter()
-        .map(|&y| ((y - min_value) * scale_factor).round() as usize)
-        .collect()
-}
+    /// Set graph type
+    pub fn graph_type(&mut self, graph_type: GraphType) -> &Self {
+        self.graph_type = graph_type;
+        self
+    }
 
-/// Prepare the values of a graph before graphing
-/// by applying scaling and interpolation/downscaling
-///
-/// # Arguments
-/// 
-/// * `x_values` - Values of the x-axis, needed for interpolation
-/// * `y_values` - Graph values
-/// * `graph` - The graph object, needed for knowing the information about width and height
-/// * `options` - GraphOptions, used for forced interpolation
-pub fn prepare(
-    y_values: &[f64],
-    x_values: &[f64],
-    graph: &GraphCanvas<GraphPixel>,
-    options: &GraphOptions,
-) -> Vec<usize> {
-    let y_values = if !options.interpolate {
-        // && x_values.windows(2).all(|w| w[1] - w[0] == w[0] - w[1]) {
-        if y_values.len() >= graph.width() {
-            downsample(&y_values, graph.width())
-        } else {
-            y_values.to_vec()
+    /// Build the actual graph,
+    /// this is potentially a heavy operation, and it will mutate &self!
+    /// If you want to only see the "current state", you should clone first!
+    pub fn build(&mut self) -> String {
+        //let min_x = self.x_values.iter().cloned().fold(f64::INFINITY, f64::min);
+        //let max_x = self
+        //    .x_values
+        //    .iter()
+        //    .cloned()
+        //    .fold(f64::NEG_INFINITY, f64::max);
+        let min_y = self.y_values.iter().cloned().fold(f64::INFINITY, f64::min);
+        let max_y = self
+            .y_values
+            .iter()
+            .cloned()
+            .fold(f64::NEG_INFINITY, f64::max);
+
+        if self.enable_axis {
+            self.draw_axis(
+                GraphPixel::Normal(ASCII_1),
+                GraphPixel::Normal(ASCII_0),
+                GraphPixel::Normal('└'),
+                GraphPixel::Normal('┌'),
+                GraphPixel::Normal('┘'),
+                GraphPixel::Normal('┐'),
+            );
         }
-    } else {
-        interpolate(&y_values, &x_values, graph.width())
-    };
 
-    let scaled_data = scale(&y_values, graph.height());
-    scaled_data
-}
+        if true {
+            // && x_values.windows(2).all(|w| w[1] - w[0] == w[0] - w[1]) {
+            if self.y_values.len() >= self.draw_width {
+                // Downsample using a common downsampling, this allows us to avoid doing anything
+                // with the x values
 
-/// Draw a graph using * for the pixels of the graph
-///
-/// # Arguments
-/// 
-/// * `x_values` - Values of the x-axis
-/// * `y_values` - Graph values
-/// * `options` - GraphOptions, used for forced interpolation
-pub fn star(y_values: &[f64], x_values: &[f64], options: &GraphOptions) -> String {
-    let mut graph = GraphCanvas::new(options.width as usize, options.height as usize);
-    if options.axis {
-        graph.axis(
-            GraphPixel::Normal(ASCII_1),
-            GraphPixel::Normal(ASCII_0),
-            GraphPixel::Normal('└'),
-            GraphPixel::Normal('┌'),
-            GraphPixel::Normal('┘'),
-            GraphPixel::Normal('┐'),
-        );
-    }
-
-    let y_values = prepare(y_values, x_values, &graph, options);
-    for (i, &value) in y_values.iter().enumerate() {
-        let y = graph.height() - value - 1;
-        graph[(y, i)] = GraphPixel::Normal('*');
-    }
-
-    graph.to_string()
-}
-
-/// Draw a graph using somewhat pretty ascii characters for pixels of the graph
-///
-/// # Arguments
-/// 
-/// * `x_values` - Values of the x-axis
-/// * `y_values` - Graph values
-/// * `options` - GraphOptions, used for forced interpolation
-pub fn ascii(y_values: &[f64], x_values: &[f64], options: &GraphOptions) -> String {
-    let mut graph = GraphCanvas::new_default(
-        GraphPixel::Blank,
-        options.width as usize,
-        options.height as usize,
-    );
-    if options.axis {
-        graph.axis(
-            GraphPixel::Normal(ASCII_1),
-            GraphPixel::Normal(ASCII_0),
-            GraphPixel::Normal('└'),
-            GraphPixel::Normal('┌'),
-            GraphPixel::Normal('┘'),
-            GraphPixel::Normal('┐'),
-        );
-    }
-
-    let y_values = prepare(y_values, x_values, &graph, options);
-    if options.axis {
-        graph.set(0, graph.height() - y_values[0], GraphPixel::Green('├'));
-        graph.set(
-            graph.full_width() - 1,
-            graph.height() - y_values[y_values.len() - 1],
-            GraphPixel::Green('┤'),
-        );
-    }
-    for i in 0..y_values.len() {
-        let y1 = graph.height() - y_values[i] - 1;
-        let y2 = if i < y_values.len() - 1 {
-            graph.height() - y_values[i + 1] - 1
+                let factor = self.y_values.len() as f64 / self.draw_width as f64;
+                let mut new_values = Vec::with_capacity(self.draw_width);
+                for i in 0..self.draw_width {
+                    let new_value = self.y_values[(i as f64 * factor) as usize];
+                    new_values.push(new_value);
+                }
+                self.y_values = new_values;
+            }
         } else {
-            y1
+            // If the sample size is not consistent, we should interpolate
+            todo!("interpolation is not implemented");
+            //interpolate(&y_values, &x_values, graph.width())
         };
 
-        if y1 == y2 {
-            graph[(y1, i)] = GraphPixel::Green(ASCII_0);
-        } else if y1 > y2 {
-            graph[(y1, i)] = GraphPixel::Green(ASCII_7);
-            graph[(y2, i)] = GraphPixel::Green(ASCII_2);
-            for j in (y2 + 1)..y1 {
-                graph[(j, i)] = GraphPixel::Green(ASCII_1);
+        // Scale the data
+        let scale_factor = (self.draw_height - 1) as f64 / (max_y - min_y);
+        for i in 0..self.y_values.len() {
+            self.y_values[i] = ((self.y_values[i] - min_y) * scale_factor).round();
+        }
+
+        match self.graph_type {
+            GraphType::Star => self.draw_star(),
+            GraphType::Ascii => self.draw_ascii(),
+        }
+
+        self.to_string()
+    }
+
+    /// Turn canvas into a string
+    pub fn to_string(&self) -> String {
+        let mut out = String::with_capacity(self.height * (self.width + 1));
+        for (i, px) in self.elements.iter().enumerate() {
+            out.push_str(&px.to_string());
+            if (i + 1) % self.width == 0 && i < (self.height * self.width - 1) {
+                out.push('\n');
             }
-        } else {
-            graph[(y1, i)] = GraphPixel::Green(ASCII_4);
-            graph[(y2, i)] = GraphPixel::Green(ASCII_3);
-            for j in (y1 + 1)..y2 {
-                graph[(j, i)] = GraphPixel::Green(ASCII_1);
-            }
+        }
+        out
+    }
+
+    /// Set a pixel at a absolute position in the canvas
+    ///
+    /// # Argument
+    ///
+    /// * `x` - X-position of pixel
+    /// * `y` - Y-position of pixel
+    /// * `px` - The pixel to set
+    fn draw_exact(&mut self, x: usize, y: usize, px: GraphPixel<char>) {
+        let pos = y * self.width + x;
+        self.elements[pos] = px;
+    }
+
+    /// Set a pixel in the drawable part of the canvas
+    ///
+    /// # Argument
+    ///
+    /// * `x` - Relative X-position of pixel
+    /// * `y` - Relative Y-position of pixel
+    /// * `px` - The pixel to set
+    fn draw(&mut self, x: usize, y: usize, px: GraphPixel<char>) {
+        let pos = (y + self.row_offset) * self.width + (x + self.col_offset);
+        self.elements[pos] = px;
+    }
+
+    /// Add axis to the canvas and move graph drawing area inside axis
+    ///
+    /// # Arguments
+    ///
+    /// * `c1` - Horizontal axis lines
+    /// * `c2` - Vertical axis lines
+    /// * `c4` - Bottom left axis pixel
+    /// * `c5` - Top left axis pixel
+    /// * `c6` - Bottom right axis pixel
+    /// * `c7` - Top right axis pixel
+    fn draw_axis(
+        &mut self,
+        c1: GraphPixel<char>,
+        c2: GraphPixel<char>,
+        c3: GraphPixel<char>,
+        c4: GraphPixel<char>,
+        c5: GraphPixel<char>,
+        c6: GraphPixel<char>,
+    ) {
+        if self.height < 2 || self.width < 2 {
+            return;
+        }
+        for i in 0..self.height {
+            self.elements[i * self.width] = c1.clone();
+            self.elements[i * self.width + self.width - 1] = c1.clone();
+        }
+        for i in 1..self.width - 1 {
+            self.elements[i] = c2.clone();
+            self.elements[(self.height - 1) * self.width + i] = c2.clone();
+        }
+        self.elements[0] = c4.clone();
+        self.elements[self.width - 1] = c6.clone();
+        self.elements[(self.height - 1) * self.width] = c3.clone();
+        self.elements[self.height * self.width - 1] = c5.clone();
+        if self.draw_height > 2 {
+            self.draw_height = self.height - 2;
+        }
+        if self.draw_width > 2 {
+            self.draw_width = self.width - 2;
+        }
+        self.col_offset = 1;
+        self.row_offset = 1;
+    }
+
+    /// Draw a graph using * for the pixels of the graph
+    fn draw_star(&mut self) {
+        for i in 0..self.y_values.len() {
+            let y = self.draw_height - (self.y_values[i] as usize) - 1;
+            self.draw(i, y, GraphPixel::Normal('*'));
         }
     }
 
-    graph.to_string()
+    /// Draw a graph using somewhat pretty ascii characters for pixels of the graph
+    pub fn draw_ascii(&mut self) {
+        if self.enable_axis {
+            self.draw_exact(0, self.draw_height - self.y_values[0] as usize, GraphPixel::Green('├'));
+            self.draw_exact(
+                self.width - 1,
+                self.height - self.y_values[self.y_values.len() - 1] as usize,
+                GraphPixel::Green('┤'),
+            );
+        }
+        for i in 0..self.y_values.len() {
+            let y1 = self.draw_height - (self.y_values[i] as usize) - 1;
+            let y2 = if i < self.y_values.len() - 1 {
+                self.draw_height - (self.y_values[i + 1] as usize) - 1
+            } else {
+                y1
+            };
+
+            if y1 == y2 {
+                self.draw(i, y1, GraphPixel::Green(ASCII_0));
+            } else if y1 > y2 {
+                self.draw(i, y1, GraphPixel::Green(ASCII_7));
+                self.draw(i, y2, GraphPixel::Green(ASCII_2));
+                for j in (y2 + 1)..y1 {
+                    self.draw(i, j, GraphPixel::Green(ASCII_1));
+                }
+            } else {
+                self.draw(i, y1, GraphPixel::Green(ASCII_4));
+                self.draw(i, y2, GraphPixel::Green(ASCII_3));
+                for j in (y1 + 1)..y2 {
+                    self.draw(i, j, GraphPixel::Green(ASCII_1));
+                }
+            }
+        }
+    }
 }
+
+// /// A better way to downsize, heavier and more complex, but should be used when sample speed is uneven.
+// ///
+// /// # Arguments
+// ///
+// /// * `y_values` - The y values that should be downsampled
+// /// * `x_values` - X values, needed to interpolate while keeping sample distance
+// /// * `column_count` - Desired resolution of the output
+// pub fn interpolate(y_values: &[f64], x_values: &[f64], column_count: usize) -> Vec<f64> {
+//     let min_x = x_values.iter().cloned().fold(f64::INFINITY, f64::min);
+//     let max_x = x_values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+//     let step = (max_x - min_x) / (column_count as f64 - 1.0);
+//     let mut interpolated_data = Vec::new();
+// 
+//     for i in 0..column_count {
+//         let target_mark = min_x + i as f64 * step;
+//         let mut j = 0;
+//         while j < x_values.len() - 1 && x_values[j + 1] < target_mark {
+//             j += 1;
+//         }
+//         let t0 = x_values[j];
+//         let t1 = x_values[j + 1];
+//         let d0 = y_values[j];
+//         let d1 = y_values[j + 1];
+//         let value = d0 + (d1 - d0) * (target_mark - t0) / (t1 - t0);
+//         interpolated_data.push(value);
+//     }
+// 
+//     interpolated_data
+// }
 
 //const _BRAILLE_1: char = '⣿';
 //const BRAILLE_1_0: char = '⡀';

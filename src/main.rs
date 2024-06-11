@@ -1,7 +1,7 @@
-use textgraph::graph;
-use textgraph::parseopts::{parseopts, Opts};
 use std::io::{self, BufRead, Write};
 use std::str::FromStr;
+use textgraph::graph;
+use textgraph::parseopts::{parseopts, Opts};
 
 /// Will graph what comes in through stdin,
 /// For each new line, the graph will be re-drawn.
@@ -10,7 +10,7 @@ use std::str::FromStr;
 ///
 /// * `opts` -  textgraph::parseopts::Opts
 fn filter(opts: Opts) {
-    print!("\x1b[?1049h");
+    //print!("\x1b[?1049h");
 
     let mut x_values: Vec<f64> = Vec::new();
     let mut y_values: Vec<f64> = Vec::new();
@@ -25,18 +25,15 @@ fn filter(opts: Opts) {
         y_values.push(y);
         x_values.push(i);
 
-        let graph_options: textgraph::graph::GraphOptions = (&opts).into();
-        let g = match opts.graph_type {
-            textgraph::parseopts::GraphType::Ascii => {
-                graph::ascii(&y_values, &x_values, &graph_options)
-            }
-            textgraph::parseopts::GraphType::Star => graph::star(&y_values, &x_values, &graph_options),
-        };
+        let mut gb = graph::GraphBuilder::new(&x_values, &y_values, opts.width, opts.height);
+        gb.axis(opts.axis);
+        gb.graph_type(opts.graph_type.clone());
+
         print!("\x1B[2J\x1B[H");
-        println!("{}", g);
+        println!("{}", gb.build());
     }
 
-    print!("\x1B[?1049l");
+    //print!("\x1B[?1049l");
     io::stdout().flush().unwrap();
 }
 
@@ -57,14 +54,10 @@ fn graph_file(opts: Opts) {
         x_values.push(i as f64);
     }
 
-    let graph_options: textgraph::graph::GraphOptions = (&opts).into();
-    let g = match opts.graph_type {
-        textgraph::parseopts::GraphType::Ascii => {
-            graph::ascii(&y_values, &x_values, &graph_options)
-        }
-        textgraph::parseopts::GraphType::Star => graph::star(&y_values, &x_values, &graph_options),
-    };
-    println!("{}", g);
+    let mut gb = graph::GraphBuilder::new(&x_values, &y_values, opts.width, opts.height);
+    gb.axis(opts.axis);
+    gb.graph_type(opts.graph_type);
+    println!("{}", gb.build());
 }
 
 /// Main entry point for the binary of textgraph
