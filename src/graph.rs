@@ -117,6 +117,20 @@ impl GraphBuilder {
         self
     }
 
+    /// Delete all saved samples before the last n
+    /// Assumes that y_values and x_values has the same length
+    ///
+    /// # Arguments
+    ///
+    /// * `n` - Number of samples to keep
+    pub fn keep_tail(&mut self, n: usize) -> &Self {
+        if self.y_values.len() > n {
+            self.y_values = self.y_values[self.y_values.len() - n..].to_vec();
+            self.x_values = self.x_values[self.x_values.len() - n..].to_vec();
+        }
+        self
+    }
+
     /// Build the actual graph,
     /// this is potentially a heavy operation, and it will mutate &self!
     /// If you want to only see the "current state", you should clone first!
@@ -148,16 +162,7 @@ impl GraphBuilder {
         if true {
             // && x_values.windows(2).all(|w| w[1] - w[0] == w[0] - w[1]) {
             if self.y_values.len() >= self.draw_width {
-                // Downsample using a common downsampling, this allows us to avoid doing anything
-                // with the x values
-
-                let factor = self.y_values.len() as f64 / self.draw_width as f64;
-                let mut new_values = Vec::with_capacity(self.draw_width);
-                for i in 0..self.draw_width {
-                    let new_value = self.y_values[(i as f64 * factor) as usize];
-                    new_values.push(new_value);
-                }
-                self.y_values = new_values;
+                self.downsample();
             }
         } else {
             // If the sample size is not consistent, we should interpolate
@@ -177,6 +182,19 @@ impl GraphBuilder {
         }
 
         self.to_string()
+    }
+
+    // Downsample using a common downsampling, this allows us to avoid doing anything
+    // with the x values.
+    // Make sure to only use one downsampling-algorithm
+    fn downsample(&mut self) {
+        let factor = self.y_values.len() as f64 / self.draw_width as f64;
+        let mut new_values = Vec::with_capacity(self.draw_width);
+        for i in 0..self.draw_width {
+            let new_value = self.y_values[(i as f64 * factor) as usize];
+            new_values.push(new_value);
+        }
+        self.y_values = new_values;
     }
 
     /// Turn canvas into a string
@@ -270,10 +288,14 @@ impl GraphBuilder {
     /// Draw a graph using somewhat pretty ascii characters for pixels of the graph
     pub fn draw_ascii(&mut self) {
         if self.enable_axis {
-            self.draw_exact(0, self.draw_height - self.y_values[0] as usize, GraphPixel::Green('├'));
+            self.draw_exact(
+                0,
+                self.draw_height - self.y_values[0] as usize,
+                GraphPixel::Green('├'),
+            );
             self.draw_exact(
                 self.width - 1,
-                self.height - self.y_values[self.y_values.len() - 1] as usize,
+                self.draw_height - self.y_values[self.y_values.len() - 1] as usize,
                 GraphPixel::Green('┤'),
             );
         }
@@ -316,7 +338,7 @@ impl GraphBuilder {
 //     let max_x = x_values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
 //     let step = (max_x - min_x) / (column_count as f64 - 1.0);
 //     let mut interpolated_data = Vec::new();
-// 
+//
 //     for i in 0..column_count {
 //         let target_mark = min_x + i as f64 * step;
 //         let mut j = 0;
@@ -330,7 +352,7 @@ impl GraphBuilder {
 //         let value = d0 + (d1 - d0) * (target_mark - t0) / (t1 - t0);
 //         interpolated_data.push(value);
 //     }
-// 
+//
 //     interpolated_data
 // }
 

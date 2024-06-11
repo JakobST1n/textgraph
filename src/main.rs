@@ -28,8 +28,11 @@ fn filter(opts: Opts) {
         let mut gb = graph::GraphBuilder::new(&x_values, &y_values, opts.width, opts.height);
         gb.axis(opts.axis);
         gb.graph_type(opts.graph_type.clone());
+        if let Some(n) = opts.last_n {
+            gb.keep_tail(n as usize);
+        }
 
-        print!("\x1B[2J\x1B[H");
+        //print!("\x1B[2J\x1B[H");
         println!("{}", gb.build());
     }
 
@@ -57,6 +60,9 @@ fn graph_file(opts: Opts) {
     let mut gb = graph::GraphBuilder::new(&x_values, &y_values, opts.width, opts.height);
     gb.axis(opts.axis);
     gb.graph_type(opts.graph_type);
+    if let Some(n) = opts.last_n {
+        gb.keep_tail(n as usize);
+    }
     println!("{}", gb.build());
 }
 
