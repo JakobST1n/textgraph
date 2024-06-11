@@ -11,4 +11,4 @@ watch some state in a sql table for a short while.
 
 The documentation is in the manual file `tg.1`.
 
-
+It is only tested with glibc and terminals with ansi escape code support.

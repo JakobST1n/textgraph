@@ -4,6 +4,7 @@ use textgraph::graph::GraphBuilder;
 use textgraph::parseopts::{parseopts, OptsBuilder};
 
 extern "C" fn handle_sigint(_sig: i32) {
+    print!("\x1b[?25h");
     print!("\x1B[?1049l");
     io::stdout().flush().unwrap();
     std::process::exit(0);
@@ -56,6 +57,7 @@ fn build_graph(x_values: &Vec<f64>, y_values: &Vec<f64>, opts: &OptsBuilder) -> 
 fn filter(opts: OptsBuilder) {
     set_filter_signalhandler();
     print!("\x1b[?1049h");
+    print!("\x1b[?25l");
 
     let mut x_values: Vec<f64> = Vec::new();
     let mut y_values: Vec<f64> = Vec::new();
