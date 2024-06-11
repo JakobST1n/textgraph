@@ -3,7 +3,7 @@
 tg \- TermGraph \- Text graphing utility
 .SH SYNOPSIS
 .B tg
-[-a|--axis] [-l|--last-n \fIN\fR] [-h|--height \fIN\fR] [-w|--width \fIN\fR] [-t \fItype\fR] [--interpolate]
+[-s|--silent] [-l|--last-n \fIN\fR] [-h|--height \fIN\fR] [-w|--width \fIN\fR] [-t \fItype\fR]
 
 .SH DESCRIPTION
 .B tg
@@ -13,8 +13,14 @@ TermGraph is a utility for graphing
 .IP "\fB-h, --help\fR"
 Display help information.
 
-.IP "\fB-a, --axis\fR"
-Enable axis on the resulting graph.
+.IP "\fB-s, --silent\fR"
+Disable distracting elements, such as axis and non-graph text.
+
+.IP "\fB-t\fR \fItype\fR"
+The type of graph to draw,
+it defaults to \fBstar\fR, which is the fastest one.
+Options are \fBstar\fR and \fBascii\fR.
+Ascii is slightly prettier to look at.
 
 .IP "\fB-w, --width\fR \fIwidth\fR"
 Specify a width for the output. 
@@ -32,7 +38,7 @@ The simplest version is if you have a text file of values
 .PP
 .nf
 .RS
-cat \fIfile\fR | tg --axis
+cat \fIfile\fR | tg
 .RE
 .fi
 .PP

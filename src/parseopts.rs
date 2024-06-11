@@ -9,8 +9,8 @@ pub struct Opts {
     pub height: usize,
     /// Which type of graph it should be, ascii, star
     pub graph_type: GraphType,
-    /// Enable axis on the resulting graph, makes it a bit prettier
-    pub axis: bool,
+    /// This will disable distracting elements, such as axis
+    pub silent: bool,
     /// Specify if it is used as a filter, and you only want to look at the last N samples
     pub last_n: Option<u64>,
     /// Read from the specified file, instead of reading continously from stdin
@@ -25,8 +25,8 @@ pub struct OptsBuilder {
     pub height: Option<usize>,
     /// Which type of graph it should be, ascii, star
     pub graph_type: GraphType,
-    /// Enable axis on the resulting graph, makes it a bit prettier
-    pub axis: bool,
+    /// This will disable distracting elements, such as axis
+    pub silent: bool,
     /// Specify if it is used as a filter, and you only want to look at the last N samples
     pub last_n: Option<u64>,
     /// Read from the specified file, instead of reading continously from stdin
@@ -53,7 +53,7 @@ impl OptsBuilder {
                 }
             }),
             graph_type: self.graph_type,
-            axis: self.axis,
+            silent: self.silent,
             last_n: self.last_n,
             in_file: self.in_file,
         }
@@ -127,8 +127,8 @@ pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progna
             };
             opts.last_n = Some(last_n);
         }
-        "a" | "axis" => {
-            opts.axis = true;
+        "s" | "silent" => {
+            opts.silent = true;
         }
         "w" | "width" => {
             let Some(width) = value else {
@@ -158,7 +158,7 @@ pub fn parseopts() -> Opts {
         width: None,
         height: None,
         graph_type: GraphType::Star,
-        axis: false,
+        silent: false,
         last_n: None,
         in_file: None,
     };

@@ -26,7 +26,7 @@ fn filter(opts: Opts) {
         x_values.push(i);
 
         let mut gb = graph::GraphBuilder::new(&x_values, &y_values, opts.width, opts.height);
-        gb.axis(opts.axis);
+        gb.axis(!opts.silent);
         gb.graph_type(opts.graph_type.clone());
         if let Some(n) = opts.last_n {
             gb.keep_tail(n as usize);
@@ -58,7 +58,7 @@ fn graph_file(opts: Opts) {
     }
 
     let mut gb = graph::GraphBuilder::new(&x_values, &y_values, opts.width, opts.height);
-    gb.axis(opts.axis);
+    gb.axis(!opts.silent);
     gb.graph_type(opts.graph_type);
     if let Some(n) = opts.last_n {
         gb.keep_tail(n as usize);

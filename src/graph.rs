@@ -150,6 +150,8 @@ impl GraphBuilder {
 
         if self.enable_axis {
             self.draw_axis(
+                min_y,
+                max_y,
                 GraphPixel::Normal(ASCII_1),
                 GraphPixel::Normal(ASCII_0),
                 GraphPixel::Normal('└'),
@@ -245,6 +247,8 @@ impl GraphBuilder {
     /// * `c7` - Top right axis pixel
     fn draw_axis(
         &mut self,
+        min_y: f64,
+        max_y: f64,
         c1: GraphPixel<char>,
         c2: GraphPixel<char>,
         c3: GraphPixel<char>,

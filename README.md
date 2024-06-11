@@ -9,3 +9,6 @@ by piping data through it.
 It was written because I sometimes have the need to
 watch some state in a sql table for a short while.
 
+The documentation is in the manual file `tg.1`.
+
+
