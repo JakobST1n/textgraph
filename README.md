@@ -13,6 +13,19 @@ The documentation is in the manual file `tg.1`.
 
 It is only tested with glibc and terminals with ansi escape code support.
 
+## Usage
+You can compile it with `cargo build --release`,
+there is also a script in `packaging` which can be used to make a `.deb`.
+If you are on a debian based distro, you should be able to run `./packaging/package-debian.sh`.
+Then a `textgraph.deb` file should be made somewhere in `/tmp/`.
+
+There is a spec file for rpms as well, but I haven't gotten around to making a script to build for that.
+
+If you compile with `cargo build --release`, you can copy it to your path, e.g. 
+```
+sudo install target/release/textgraph /usr/local/bin/tg
+sudo install tg.1 /usr/share/man/man1/tg.1
+```
 
 ## Example 1
 Some examples of the different modes, from the same input file with random numbers
