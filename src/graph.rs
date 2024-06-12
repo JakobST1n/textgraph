@@ -5,6 +5,15 @@ const ASCII_3: char = '╰';
 const ASCII_4: char = '╮';
 const ASCII_7: char = '╯';
 
+pub fn brc6(i: u8) -> char {
+    const BRAILLE_UNICODE_OFFSET: u32 = 0x2800;
+    if i < 64 {
+        std::char::from_u32(BRAILLE_UNICODE_OFFSET + i as u32).unwrap()
+    } else {
+        ' '
+    }
+}
+
 #[derive(Clone)]
 #[allow(dead_code)]
 enum GraphPixel<T> {
@@ -427,34 +436,13 @@ impl GraphBuilder {
             let y2_abs = y2 / 3;
 
             if y1_abs == y2_abs {
-                let px = match (y1 % 3, y2 % 3) {
-                    (2, 2) => '⠤',
-                    (2, 1) => '⠔',
-                    (2, 0) => '⠌',
-                    (1, 2) => '⠢',
-                    (1, 1) => '⠒',
-                    (1, 0) => '⠊',
-                    (0, 2) => '⠡',
-                    (0, 1) => '⠑',
-                    (0, 0) => '⠉',
-                    _ => '?',
-                };
-                self.draw(i / 2, y1_abs, GraphPixel::Normal(px));
+                let pxx = (1 << (y1 % 3)) | (1 << ((y2 % 3) + 3));
+                self.draw(i / 2, y1_abs, GraphPixel::Normal(brc6(pxx)));
             } else {
-                let px = match y1 % 3 {
-                    2 => '⠄',
-                    1 => '⠂',
-                    0 => '⠁',
-                    _ => '?',
-                };
-                self.draw(i / 2, y1_abs, GraphPixel::Normal(px));
-                let px = match y2 % 3 {
-                    2 => '⠠',
-                    1 => '⠐',
-                    0 => '⠈',
-                    _ => '?',
-                };
-                self.draw(i / 2, y2_abs, GraphPixel::Normal(px));
+                let pxx1 = 1 << (y1 % 3);
+                self.draw(i / 2, y1_abs, GraphPixel::Normal(brc6(pxx1)));
+                let pxx2 = 1 << ((y2 % 3) + 3);
+                self.draw(i / 2, y2_abs, GraphPixel::Normal(brc6(pxx2)));
             }
             i += 2;
         }
