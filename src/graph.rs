@@ -12,6 +12,9 @@ enum GraphPixel<T> {
     Green(T),
     Blue(T),
     Red(T),
+    Yellow(T),
+    Magenta(T),
+    Cyan(T),
     Blank,
 }
 
@@ -29,8 +32,11 @@ impl<T: std::fmt::Display> std::fmt::Display for GraphPixel<T> {
             match self {
                 GraphPixel::Normal(c) => format!("{}", c),
                 GraphPixel::Green(c) => format!("\x1b[32m{}\x1b[0m", c),
-                GraphPixel::Blue(c) => format!("\x1b[33m{}\x1b[0m", c),
+                GraphPixel::Blue(c) => format!("\x1b[34m{}\x1b[0m", c),
                 GraphPixel::Red(c) => format!("\x1b[31m{}\x1b[0m", c),
+                GraphPixel::Yellow(c) => format!("\x1b[33m{}\x1b[0m", c),
+                GraphPixel::Magenta(c) => format!("\x1b[33m{}\x1b[0m", c),
+                GraphPixel::Cyan(c) => format!("\x1b[36m{}\x1b[0m", c),
                 GraphPixel::Blank => String::from(" "),
             }
         )
@@ -137,7 +143,7 @@ impl GraphBuilder {
     pub fn keep_tail(&mut self, n: usize) -> &Self {
         for i in 0..self.y_values.len() {
             if self.y_values[i].len() > n {
-                self.y_values[i] = self.y_values[i][self.y_values.len() - n..].to_vec();
+                self.y_values[i] = self.y_values[i][self.y_values[0].len() - n..].to_vec();
                 self.x_values = self.x_values[self.x_values.len() - n..].to_vec();
             }
         }
@@ -426,30 +432,30 @@ impl GraphBuilder {
 
             if y1_abs == y2_abs {
                 let px = match (y1 % 3, y2 % 3) {
-                    (0, 0) => '⠤',
-                    (0, 1) => '⠔',
-                    (0, 2) => '⠌',
-                    (1, 0) => '⠢',
+                    (2, 2) => '⠤',
+                    (2, 1) => '⠔',
+                    (2, 0) => '⠌',
+                    (1, 2) => '⠢',
                     (1, 1) => '⠒',
-                    (1, 2) => '⠊',
-                    (2, 0) => '⠡',
-                    (2, 1) => '⠑',
-                    (2, 2) => '⠉',
+                    (1, 0) => '⠊',
+                    (0, 2) => '⠡',
+                    (0, 1) => '⠑',
+                    (0, 0) => '⠉',
                     _ => '?',
                 };
                 self.draw(i / 2, y1_abs, GraphPixel::Normal(px));
             } else {
                 let px = match y1 % 3 {
-                    0 => '⠄',
+                    2 => '⠄',
                     1 => '⠂',
-                    2 => '⠁',
+                    0 => '⠁',
                     _ => '?',
                 };
                 self.draw(i / 2, y1_abs, GraphPixel::Normal(px));
                 let px = match y2 % 3 {
-                    0 => '⠠',
+                    2 => '⠠',
                     1 => '⠐',
-                    2 => '⠈',
+                    0 => '⠈',
                     _ => '?',
                 };
                 self.draw(i / 2, y2_abs, GraphPixel::Normal(px));
