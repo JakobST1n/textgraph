@@ -382,7 +382,7 @@ impl GraphBuilder {
     fn draw_star(&mut self, g: usize) {
         for i in 0..self.y_values[g].len() {
             let y = self.draw_height - (self.y_values[g][i] as usize) - 1;
-            self.draw(i, y, GraphPixel::Normal('*'));
+            self.draw(i, y, self.color_pixel('*', |px| GraphPixel::Green(px)));
         }
     }
 
@@ -437,12 +437,12 @@ impl GraphBuilder {
 
             if y1_abs == y2_abs {
                 let pxx = (1 << (y1 % 3)) | (1 << ((y2 % 3) + 3));
-                self.draw(i / 2, y1_abs, GraphPixel::Normal(brc6(pxx)));
+                self.draw(i / 2, y1_abs, self.color_pixel(brc6(pxx), |px| GraphPixel::Green(px)));
             } else {
                 let pxx1 = 1 << (y1 % 3);
-                self.draw(i / 2, y1_abs, GraphPixel::Normal(brc6(pxx1)));
+                self.draw(i / 2, y1_abs, self.color_pixel(brc6(pxx1), |px| GraphPixel::Green(px)));
                 let pxx2 = 1 << ((y2 % 3) + 3);
-                self.draw(i / 2, y2_abs, GraphPixel::Normal(brc6(pxx2)));
+                self.draw(i / 2, y2_abs, self.color_pixel(brc6(pxx2), |px| GraphPixel::Green(px)));
             }
             i += 2;
         }
