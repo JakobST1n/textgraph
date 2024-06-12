@@ -5,10 +5,28 @@ const ASCII_3: char = '╰';
 const ASCII_4: char = '╮';
 const ASCII_7: char = '╯';
 
-pub fn brc6(i: u8) -> char {
-    const BRAILLE_UNICODE_OFFSET: u32 = 0x2800;
-    if i < 64 {
-        std::char::from_u32(BRAILLE_UNICODE_OFFSET + i as u32).unwrap()
+/// Convenience function for converting a bitstring to a 6dot braille unicode character
+///
+/// # Arguments
+///
+/// - `i` - Bitstring, representing the dots of the braille character as below:
+///         3  6 | 4  8
+///         2  5 | 3  7
+///         1  4 | 2  6
+///              | 1  5
+///         If this only supported the 6dot, it could have used u8
+/// - `btype` - Which braile variant the bitstring represents (dot6 or dot8)
+pub fn brc(i: u32, btype: &BrailleType) -> char {
+    let braille_unicode_offset: u32 = match btype {
+        BrailleType::dot6 => 0x2800,
+        BrailleType::dot8 => 0x2840,
+    };
+    let max = match btype {
+        BrailleType::dot6 => 64,
+        BrailleType::dot8 => 255,
+    };
+    if i < max {
+        std::char::from_u32(braille_unicode_offset + i as u32).unwrap()
     } else {
         ' '
     }
@@ -52,6 +70,12 @@ impl<T: std::fmt::Display> std::fmt::Display for GraphPixel<T> {
     }
 }
 
+#[derive(PartialEq, Clone)]
+pub enum BrailleType {
+    dot6,
+    dot8,
+}
+
 /// Available options for how the graph should look
 #[derive(PartialEq, Clone)]
 pub enum GraphType {
@@ -60,12 +84,21 @@ pub enum GraphType {
     /// Use pretty characters from the ascii range
     Ascii,
     /// Draw using braille unicode characters
-    Braille,
+    Braille(BrailleType),
 }
 
 impl std::default::Default for GraphType {
     fn default() -> Self {
         GraphType::Star
+    }
+}
+
+impl GraphType {
+    fn btype(&self) -> BrailleType {
+        match self {
+            GraphType::Braille(b) => b.clone(),
+            _ => panic!("cannot get btype on non Braille GraphType"),
+        }
     }
 }
 
@@ -176,7 +209,9 @@ impl GraphBuilder {
     /// If you want to only see the "current state", you should clone first!
     pub fn build(&mut self) -> String {
         if self.cut_overflow {
-            if self.graph_type == GraphType::Braille {
+            if self.graph_type == GraphType::Braille(BrailleType::dot6) {
+                self.keep_tail(self.draw_width * 2);
+            } else if self.graph_type == GraphType::Braille(BrailleType::dot8) {
                 self.keep_tail(self.draw_width * 2);
             } else {
                 self.keep_tail(self.draw_width);
@@ -213,7 +248,9 @@ impl GraphBuilder {
 
         // Run a second time after axis has been calculated properly
         if self.cut_overflow {
-            if self.graph_type == GraphType::Braille {
+            if self.graph_type == GraphType::Braille(BrailleType::dot6) {
+                self.keep_tail(self.draw_width * 2);
+            } else if self.graph_type == GraphType::Braille(BrailleType::dot8) {
                 self.keep_tail(self.draw_width * 2);
             } else {
                 self.keep_tail(self.draw_width);
@@ -231,8 +268,10 @@ impl GraphBuilder {
 
         // Scale the data
         let mut scale_height = self.draw_height;
-        if self.graph_type == GraphType::Braille {
+        if self.graph_type == GraphType::Braille(BrailleType::dot6) {
             scale_height = self.draw_height * 3;
+        } else if self.graph_type == GraphType::Braille(BrailleType::dot8) {
+            scale_height = self.draw_height * 4;
         }
         let scale_factor = (scale_height - 1) as f64 / (max_y - min_y);
         for i in 0..self.y_values[0].len() {
@@ -242,7 +281,8 @@ impl GraphBuilder {
         match self.graph_type {
             GraphType::Star => self.draw_star(0),
             GraphType::Ascii => self.draw_ascii(0),
-            GraphType::Braille => self.draw_braille(0),
+            GraphType::Braille(BrailleType::dot6) => self.draw_braille(0),
+            GraphType::Braille(BrailleType::dot8) => self.draw_braille(0),
         }
 
         self.to_string()
@@ -254,7 +294,9 @@ impl GraphBuilder {
     fn downsample(&mut self) {
         for g in 0..self.y_values.len() {
             let mut scale_width = self.draw_width;
-            if self.graph_type == GraphType::Braille {
+            if self.graph_type == GraphType::Braille(BrailleType::dot6)
+                || self.graph_type == GraphType::Braille(BrailleType::dot8)
+            {
                 scale_width *= 2;
             }
             if self.y_values[g].len() < scale_width {
@@ -426,23 +468,47 @@ impl GraphBuilder {
         }
     }
 
-    /// Draw a graph using * for the pixels of the graph
+    /// Draw a graph using braille characters, this assumes the graph is scaled for 6dot characters
+    /// meaning width is divided by 2, and height is divided by 3
     fn draw_braille(&mut self, g: usize) {
+        let mut y_scale = 1;
+        let x_scale = 2;
+
+        let btype = self.graph_type.btype();
+        if self.graph_type == GraphType::Braille(BrailleType::dot6) {
+            y_scale = 3;
+        }
+        if self.graph_type == GraphType::Braille(BrailleType::dot8) {
+            y_scale = 4;
+        }
+
         let mut i = 0;
         while i < self.y_values[g].len() - 1 {
-            let y1 = (self.draw_height * 3) - (self.y_values[g][i] as usize) - 1;
-            let y1_abs = y1 / 3;
-            let y2 = (self.draw_height * 3) - (self.y_values[g][i + 1] as usize) - 1;
-            let y2_abs = y2 / 3;
+            let y1 = (self.draw_height * y_scale) - (self.y_values[g][i] as usize) - 1;
+            let y1_abs = y1 / y_scale;
+            let y2 = (self.draw_height * y_scale) - (self.y_values[g][i + 1] as usize) - 1;
+            let y2_abs = y2 / y_scale;
 
             if y1_abs == y2_abs {
-                let pxx = (1 << (y1 % 3)) | (1 << ((y2 % 3) + 3));
-                self.draw(i / 2, y1_abs, self.color_pixel(brc6(pxx), |px| GraphPixel::Green(px)));
+                let pxx = (1 << (y1 % y_scale)) | (1 << ((y2 % y_scale) + y_scale));
+                self.draw(
+                    i / x_scale,
+                    y1_abs,
+                    self.color_pixel(brc(pxx, &btype), |px| GraphPixel::Green(px)),
+                );
             } else {
-                let pxx1 = 1 << (y1 % 3);
-                self.draw(i / 2, y1_abs, self.color_pixel(brc6(pxx1), |px| GraphPixel::Green(px)));
-                let pxx2 = 1 << ((y2 % 3) + 3);
-                self.draw(i / 2, y2_abs, self.color_pixel(brc6(pxx2), |px| GraphPixel::Green(px)));
+                let pxx1 = 1 << (y1 % y_scale);
+                self.draw(
+                    i / x_scale,
+                    y1_abs,
+                    self.color_pixel(brc(pxx1, &btype), |px| GraphPixel::Green(px)),
+                );
+                let pxx2 = 1 << ((y2 % y_scale) + y_scale);
+                self.draw(
+                    i / x_scale,
+                    y2_abs,
+                    self.color_pixel(brc(pxx2, &btype), |px| GraphPixel::Green(px)),
+                );
             }
             i += 2;
         }

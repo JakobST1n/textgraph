@@ -31,7 +31,7 @@ the last will likely be respected.
 Shorthand for -t braille, if multiple options setting mode is specified, 
 the last will likely be respected.
 
-.IP "\fB-t\fR \fIstar\fR|\fIascii\fR|\fIbraille\fR"
+.IP "\fB-t\fR \fIstar\fR|\fIascii\fR|\fIbraille\fR|\fIbraille6\fR|\fIbraille8\fR"
 The type of graph to draw,
 it defaults to \fBstar\fR, which is the fastest one.
 
@@ -41,7 +41,11 @@ Scatter plot using only the '*' character.
 \fBascii\fR 
 Ascii is slightly prettier to look at.
 
-\fBbraille\fR
+\fBbraille\fR,
+\fBbraille6\fR
+Uses braille characters to draw higher resolution plots.
+
+\fBbraille8\fR
 This is the most scatter-plot-ish with the highest resolution, but also the most buggy.
 
 .IP "\fB-w, --width\fR \fIwidth\fR"

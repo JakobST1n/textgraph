@@ -1,4 +1,4 @@
-use crate::graph::GraphType;
+use crate::graph::{BrailleType, GraphType};
 use std::str::FromStr;
 
 use std::io::IsTerminal;
@@ -83,7 +83,7 @@ macro_rules! parseopts_panic {
         println!("  -b, --braille       Shorthand for -t braille");
         println!("  -a, --ascii         Shorthand for -t ascii");
         println!(
-            "  -t           TYPE   Set graph type, valid options are 'star', 'ascii' or 'braille'"
+            "  -t           TYPE   Set graph type, valid options are 'star', 'ascii', 'braille', 'braille6' or 'braille8'"
         );
         println!("  -n, --last-n N      Only include N samples in plot");
         println!("  -c, --cut           Special case of --last-n, where N is set to --width");
@@ -117,8 +117,11 @@ pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progna
                 "ascii" => {
                     opts.graph_type = GraphType::Ascii;
                 }
-                "braille" => {
-                    opts.graph_type = GraphType::Braille;
+                "braille" | "braille6" => {
+                    opts.graph_type = GraphType::Braille(BrailleType::dot6);
+                }
+                "braille8" => {
+                    opts.graph_type = GraphType::Braille(BrailleType::dot8);
                 }
                 t => {
                     println!(
@@ -158,7 +161,7 @@ pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progna
             opts.graph_type = GraphType::Ascii;
         }
         "b" | "braille" => {
-            opts.graph_type = GraphType::Braille;
+            opts.graph_type = GraphType::Braille(BrailleType::dot6);
         }
         "c" | "cut" => {
             opts.cut = true;
