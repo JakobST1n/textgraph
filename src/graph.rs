@@ -213,9 +213,7 @@ impl GraphBuilder {
 
         if true {
             // && x_values.windows(2).all(|w| w[1] - w[0] == w[0] - w[1]) {
-            if self.y_values[0].len() >= self.draw_width {
-                self.downsample();
-            }
+            self.downsample();
         } else {
             // If the sample size is not consistent, we should interpolate
             todo!("interpolation is not implemented");
@@ -246,23 +244,21 @@ impl GraphBuilder {
     // Make sure to only use one downsampling-algorithm
     fn downsample(&mut self) {
         for g in 0..self.y_values.len() {
+            let mut scale_width = self.draw_width;
             if self.graph_type == GraphType::Braille {
-                let factor = self.y_values[g].len() as f64 / (self.draw_width as f64 * 2.0);
-                let mut new_values = Vec::with_capacity(self.draw_width * 2);
-                for i in 0..self.draw_width * 2 {
-                    let new_value = self.y_values[g][(i as f64 * factor) as usize];
-                    new_values.push(new_value);
-                }
-                self.y_values[g] = new_values;
-            } else {
-                let factor = self.y_values[g].len() as f64 / self.draw_width as f64;
-                let mut new_values = Vec::with_capacity(self.draw_width);
-                for i in 0..self.draw_width {
-                    let new_value = self.y_values[g][(i as f64 * factor) as usize];
-                    new_values.push(new_value);
-                }
-                self.y_values[g] = new_values;
+                scale_width *= 2;
             }
+            if self.y_values[g].len() < scale_width {
+                continue;
+            }
+
+            let factor = self.y_values[g].len() as f64 / scale_width as f64;
+            let mut new_values = Vec::with_capacity(scale_width);
+            for i in 0..scale_width {
+                let new_value = self.y_values[g][(i as f64 * factor) as usize];
+                new_values.push(new_value);
+            }
+            self.y_values[g] = new_values;
         }
     }
 
@@ -391,7 +387,7 @@ impl GraphBuilder {
             );
             self.draw_exact(
                 self.width - 1,
-                self.draw_height - self.y_values[g][self.y_values.len() - 1] as usize,
+                self.draw_height - self.y_values[g][self.y_values[g].len() - 1] as usize,
                 self.color_pixel('┤', |px| GraphPixel::Green(px)),
             );
         }
