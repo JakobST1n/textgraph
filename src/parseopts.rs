@@ -72,10 +72,24 @@ impl OptsBuilder {
 /// the program exited.
 macro_rules! parseopts_panic {
     ($progname:expr) => {
+        println!("Usage: {} [OPTIONS] [INPUTFILE]\n", $progname);
+        println!("INPUTFILE:");
+        println!("  If provided, the data will be read from the file.");
+        println!("  If not provided, data will be read from STDIN.\n");
+        println!("OPTIONS:");
+        println!("  -h, --help          Show this help text");
+        println!("                      See also 'man tg'");
+        println!("  -s, --silent        Disable distracting elements, such as axis");
+        println!("  -b, --braille       Shorthand for -t braille");
+        println!("  -a, --ascii         Shorthand for -t ascii");
         println!(
-            "Usage: {} [-h|--height <height>] [-w|--width <width>] [-t <star|ascii|braille>]",
-            $progname
+            "  -t           TYPE   Set graph type, valid options are 'star', 'ascii' or 'braille'"
         );
+        println!("  -n, --last-n N      Only include N samples in plot");
+        println!("  -c, --cut           Special case of --last-n, where N is set to --width");
+        println!("  -w, --width  WIDTH  Set desired width of graph");
+        println!("  -h, --height HEIGHT Set desired height of graph");
+        println!("      --color  ENABLE Enable or disable color, valid options are 'yes' or 'no'");
         std::process::exit(1);
     };
 }
@@ -93,7 +107,7 @@ pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progna
     match arg {
         "t" => {
             let Some(graph_type) = value else {
-                println!("Missing value for {}", arg);
+                println!("Missing value for {}\n", arg);
                 parseopts_panic!(progname);
             };
             match graph_type.as_str() {
@@ -108,7 +122,7 @@ pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progna
                 }
                 t => {
                     println!(
-                        "Unknown type \"{}\", valid options are \"star\", \"ascii\" and \"braille\".",
+                        "Unknown type \"{}\", valid options are \"star\", \"ascii\" and \"braille\".\n",
                         t
                     );
                     parseopts_panic!(progname);
@@ -117,22 +131,22 @@ pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progna
         }
         "h" | "height" => {
             let Some(height) = value else {
-                println!("Missing value for {}", arg);
+                println!("Missing value for {}\n", arg);
                 parseopts_panic!(progname);
             };
             let Ok(height) = usize::from_str(&height) else {
-                println!("Cannot parse integer from \"{}\"", height);
+                println!("Cannot parse integer from \"{}\"\n", height);
                 parseopts_panic!(progname);
             };
             opts.height = Some(height);
         }
         "n" | "last-n" => {
             let Some(last_n) = value else {
-                println!("Missing value for {}", arg);
+                println!("Missing value for {}\n", arg);
                 parseopts_panic!(progname);
             };
             let Ok(last_n) = u64::from_str(&last_n) else {
-                println!("Cannot parse integer from \"{}\"", last_n);
+                println!("Cannot parse integer from \"{}\"\n", last_n);
                 parseopts_panic!(progname);
             };
             opts.last_n = Some(last_n);
@@ -151,31 +165,37 @@ pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progna
         }
         "color" => {
             let Some(color) = value else {
-                println!("Missing value for {}", arg);
+                println!("Missing value for {}\n", arg);
                 parseopts_panic!(progname);
             };
             opts.color = match color.as_str() {
                 "yes" => Some(true),
                 "no" => Some(false),
                 t => {
-                    println!("Unknown type \"{}\", valid options are \"yes\", \"no\".", t);
+                    println!(
+                        "Unknown type \"{}\", valid options are \"yes\", \"no\".\n",
+                        t
+                    );
                     parseopts_panic!(progname);
                 }
             }
         }
         "w" | "width" => {
             let Some(width) = value else {
-                println!("Missing value for {}", arg);
+                println!("Missing value for {}\n", arg);
                 parseopts_panic!(progname);
             };
             let Ok(width) = usize::from_str(&width) else {
-                println!("Cannot parse integer from \"{}\"", width);
+                println!("Cannot parse integer from \"{}\"\n", width);
                 parseopts_panic!(progname);
             };
             opts.width = Some(width);
         }
+        "help" => {
+            parseopts_panic!(progname);
+        }
         opt => {
-            println!("Unknown option \"{}\"", opt);
+            println!("Unknown option \"{}\"\n", opt);
             parseopts_panic!(progname);
         }
     }
@@ -217,7 +237,7 @@ pub fn parseopts() -> OptsBuilder {
             } else {
                 arg_name = arg.clone();
                 match arg_name.as_str() {
-                    "widht" | "height" | "last-n" | "color" => {
+                    "width" | "height" | "last-n" | "color" => {
                         arg_value = it.next();
                     }
                     _ => (),
@@ -243,7 +263,7 @@ pub fn parseopts() -> OptsBuilder {
                 }
                 _ => {
                     println!(
-                        "No positional argument expected at position {} (\"{}\")",
+                        "No positional argument expected at position {} (\"{}\")\n",
                         pos_arg, arg
                     );
                     parseopts_panic!(progname);
