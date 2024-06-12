@@ -1,6 +1,8 @@
 use crate::graph::GraphType;
 use std::str::FromStr;
 
+use std::io::IsTerminal;
+
 /// Struct containing command line options
 pub struct Opts {
     /// Desired width of graph, if None, it should be automatically determined
@@ -17,6 +19,8 @@ pub struct Opts {
     pub cut: bool,
     /// Read from the specified file, instead of reading continously from stdin
     pub in_file: Option<String>,
+    /// Enable color
+    pub color: bool,
 }
 
 /// Struct containing command line options
@@ -29,6 +33,7 @@ pub struct OptsBuilder {
     pub last_n: Option<u64>,
     pub cut: bool,
     pub in_file: Option<String>,
+    pub color: Option<bool>,
 }
 
 impl OptsBuilder {
@@ -55,6 +60,9 @@ impl OptsBuilder {
             last_n: self.last_n,
             in_file: self.in_file,
             cut: self.cut,
+            color: self
+                .color
+                .unwrap_or_else(|| std::io::stdout().is_terminal()),
         }
     }
 }
@@ -141,6 +149,20 @@ pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progna
         "c" | "cut" => {
             opts.cut = true;
         }
+        "color" => {
+            let Some(color) = value else {
+                println!("Missing value for {}", arg);
+                parseopts_panic!(progname);
+            };
+            opts.color = match color.as_str() {
+                "yes" => Some(true),
+                "no" => Some(false),
+                t => {
+                    println!("Unknown type \"{}\", valid options are \"yes\", \"no\".", t);
+                    parseopts_panic!(progname);
+                }
+            }
+        }
         "w" | "width" => {
             let Some(width) = value else {
                 println!("Missing value for {}", arg);
@@ -173,6 +195,7 @@ pub fn parseopts() -> OptsBuilder {
         last_n: None,
         cut: false,
         in_file: None,
+        color: None,
     };
 
     let mut it = std::env::args();
@@ -194,7 +217,7 @@ pub fn parseopts() -> OptsBuilder {
             } else {
                 arg_name = arg.clone();
                 match arg_name.as_str() {
-                    "widht" | "height" | "last-n" => {
+                    "widht" | "height" | "last-n" | "color" => {
                         arg_value = it.next();
                     }
                     _ => (),

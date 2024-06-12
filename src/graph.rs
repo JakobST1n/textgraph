@@ -1,6 +1,3 @@
-//use std::io::IsTerminal;
-//dbg!(std::io::stdout().is_terminal());
-
 const ASCII_0: char = '─';
 const ASCII_1: char = '│';
 const ASCII_2: char = '╭';
@@ -77,13 +74,15 @@ pub struct GraphBuilder {
     /// The values of the x-axis of the graph
     x_values: Vec<f64>,
     /// The values of the y-axis of the graph
-    y_values: Vec<f64>,
+    y_values: Vec<Vec<f64>>,
     /// Decides whether axis will be drawn on the resulting graph
     enable_axis: bool,
     /// Which GraphType to use when the graph is drawn
     graph_type: GraphType,
     /// Special case of running keep_tail once
     cut_overflow: bool,
+    /// Whether or not to use color pixels
+    enable_color: bool,
 }
 
 impl GraphBuilder {
@@ -103,10 +102,11 @@ impl GraphBuilder {
             col_offset: 0,
             row_offset: 0,
             x_values: x_values.to_vec(),
-            y_values: y_values.to_vec(),
+            y_values: vec![y_values.to_vec()],
             enable_axis: false,
             graph_type: GraphType::default(),
             cut_overflow: false,
+            enable_color: true,
         }
     }
 
@@ -122,6 +122,12 @@ impl GraphBuilder {
         self
     }
 
+    /// Enable or disable color
+    pub fn color(&mut self, enable_color: bool) -> &Self {
+        self.enable_color = enable_color;
+        self
+    }
+
     /// Delete all saved samples before the last n
     /// Assumes that y_values and x_values has the same length
     ///
@@ -129,9 +135,11 @@ impl GraphBuilder {
     ///
     /// * `n` - Number of samples to keep
     pub fn keep_tail(&mut self, n: usize) -> &Self {
-        if self.y_values.len() > n {
-            self.y_values = self.y_values[self.y_values.len() - n..].to_vec();
-            self.x_values = self.x_values[self.x_values.len() - n..].to_vec();
+        for i in 0..self.y_values.len() {
+            if self.y_values[i].len() > n {
+                self.y_values[i] = self.y_values[i][self.y_values.len() - n..].to_vec();
+                self.x_values = self.x_values[self.x_values.len() - n..].to_vec();
+            }
         }
         self
     }
@@ -166,9 +174,11 @@ impl GraphBuilder {
         //    .iter()
         //    .cloned()
         //    .fold(f64::NEG_INFINITY, f64::max);
-        let min_y = self.y_values.iter().cloned().fold(f64::INFINITY, f64::min);
-        let max_y = self
-            .y_values
+        let min_y = self.y_values[0]
+            .iter()
+            .cloned()
+            .fold(f64::INFINITY, f64::min);
+        let max_y = self.y_values[0]
             .iter()
             .cloned()
             .fold(f64::NEG_INFINITY, f64::max);
@@ -197,7 +207,7 @@ impl GraphBuilder {
 
         if true {
             // && x_values.windows(2).all(|w| w[1] - w[0] == w[0] - w[1]) {
-            if self.y_values.len() >= self.draw_width {
+            if self.y_values[0].len() >= self.draw_width {
                 self.downsample();
             }
         } else {
@@ -212,14 +222,14 @@ impl GraphBuilder {
             scale_height = self.draw_height * 3;
         }
         let scale_factor = (scale_height - 1) as f64 / (max_y - min_y);
-        for i in 0..self.y_values.len() {
-            self.y_values[i] = ((self.y_values[i] - min_y) * scale_factor).round();
+        for i in 0..self.y_values[0].len() {
+            self.y_values[0][i] = ((self.y_values[0][i] - min_y) * scale_factor).round();
         }
 
         match self.graph_type {
-            GraphType::Star => self.draw_star(),
-            GraphType::Ascii => self.draw_ascii(),
-            GraphType::Braille => self.draw_braille(),
+            GraphType::Star => self.draw_star(0),
+            GraphType::Ascii => self.draw_ascii(0),
+            GraphType::Braille => self.draw_braille(0),
         }
 
         self.to_string()
@@ -229,22 +239,24 @@ impl GraphBuilder {
     // with the x values.
     // Make sure to only use one downsampling-algorithm
     fn downsample(&mut self) {
-        if self.graph_type == GraphType::Braille {
-            let factor = self.y_values.len() as f64 / (self.draw_width as f64 * 2.0);
-            let mut new_values = Vec::with_capacity(self.draw_width * 2);
-            for i in 0..self.draw_width * 2 {
-                let new_value = self.y_values[(i as f64 * factor) as usize];
-                new_values.push(new_value);
+        for g in 0..self.y_values.len() {
+            if self.graph_type == GraphType::Braille {
+                let factor = self.y_values[g].len() as f64 / (self.draw_width as f64 * 2.0);
+                let mut new_values = Vec::with_capacity(self.draw_width * 2);
+                for i in 0..self.draw_width * 2 {
+                    let new_value = self.y_values[g][(i as f64 * factor) as usize];
+                    new_values.push(new_value);
+                }
+                self.y_values[g] = new_values;
+            } else {
+                let factor = self.y_values[g].len() as f64 / self.draw_width as f64;
+                let mut new_values = Vec::with_capacity(self.draw_width);
+                for i in 0..self.draw_width {
+                    let new_value = self.y_values[g][(i as f64 * factor) as usize];
+                    new_values.push(new_value);
+                }
+                self.y_values[g] = new_values;
             }
-            self.y_values = new_values;
-        } else {
-            let factor = self.y_values.len() as f64 / self.draw_width as f64;
-            let mut new_values = Vec::with_capacity(self.draw_width);
-            for i in 0..self.draw_width {
-                let new_value = self.y_values[(i as f64 * factor) as usize];
-                new_values.push(new_value);
-            }
-            self.y_values = new_values;
         }
     }
 
@@ -258,6 +270,19 @@ impl GraphBuilder {
             }
         }
         out
+    }
+
+    // Method that takes a closure to decide which GraphPixel variant to create
+    // A more customizable variant of the color! macro
+    fn color_pixel<F>(&self, px: char, creator: F) -> GraphPixel<char>
+    where
+        F: FnOnce(char) -> GraphPixel<char>,
+    {
+        if self.enable_color {
+            creator(px)
+        } else {
+            GraphPixel::Normal(px)
+        }
     }
 
     /// Set a pixel at a absolute position in the canvas
@@ -343,60 +368,60 @@ impl GraphBuilder {
     }
 
     /// Draw a graph using * for the pixels of the graph
-    fn draw_star(&mut self) {
-        for i in 0..self.y_values.len() {
-            let y = self.draw_height - (self.y_values[i] as usize) - 1;
+    fn draw_star(&mut self, g: usize) {
+        for i in 0..self.y_values[g].len() {
+            let y = self.draw_height - (self.y_values[g][i] as usize) - 1;
             self.draw(i, y, GraphPixel::Normal('*'));
         }
     }
 
     /// Draw a graph using somewhat pretty ascii characters for pixels of the graph
-    pub fn draw_ascii(&mut self) {
+    pub fn draw_ascii(&mut self, g: usize) {
         if self.enable_axis {
             self.draw_exact(
                 self.col_offset - 1,
-                self.draw_height - self.y_values[0] as usize,
-                GraphPixel::Green('├'),
+                self.draw_height - self.y_values[g][0] as usize,
+                self.color_pixel('├', |px| GraphPixel::Green(px)),
             );
             self.draw_exact(
                 self.width - 1,
-                self.draw_height - self.y_values[self.y_values.len() - 1] as usize,
-                GraphPixel::Green('┤'),
+                self.draw_height - self.y_values[g][self.y_values.len() - 1] as usize,
+                self.color_pixel('┤', |px| GraphPixel::Green(px)),
             );
         }
-        for i in 0..self.y_values.len() {
-            let y1 = self.draw_height - (self.y_values[i] as usize) - 1;
-            let y2 = if i < self.y_values.len() - 1 {
-                self.draw_height - (self.y_values[i + 1] as usize) - 1
+        for i in 0..self.y_values[g].len() {
+            let y1 = self.draw_height - (self.y_values[g][i] as usize) - 1;
+            let y2 = if i < self.y_values[g].len() - 1 {
+                self.draw_height - (self.y_values[g][i + 1] as usize) - 1
             } else {
                 y1
             };
 
             if y1 == y2 {
-                self.draw(i, y1, GraphPixel::Green(ASCII_0));
+                self.draw(i, y1, self.color_pixel(ASCII_0, |px| GraphPixel::Green(px)));
             } else if y1 > y2 {
-                self.draw(i, y1, GraphPixel::Green(ASCII_7));
-                self.draw(i, y2, GraphPixel::Green(ASCII_2));
+                self.draw(i, y1, self.color_pixel(ASCII_7, |px| GraphPixel::Green(px)));
+                self.draw(i, y2, self.color_pixel(ASCII_2, |px| GraphPixel::Green(px)));
                 for j in (y2 + 1)..y1 {
-                    self.draw(i, j, GraphPixel::Green(ASCII_1));
+                    self.draw(i, j, self.color_pixel(ASCII_1, |px| GraphPixel::Green(px)));
                 }
             } else {
-                self.draw(i, y1, GraphPixel::Green(ASCII_4));
-                self.draw(i, y2, GraphPixel::Green(ASCII_3));
+                self.draw(i, y1, self.color_pixel(ASCII_4, |px| GraphPixel::Green(px)));
+                self.draw(i, y2, self.color_pixel(ASCII_3, |px| GraphPixel::Green(px)));
                 for j in (y1 + 1)..y2 {
-                    self.draw(i, j, GraphPixel::Green(ASCII_1));
+                    self.draw(i, j, self.color_pixel(ASCII_1, |px| GraphPixel::Green(px)));
                 }
             }
         }
     }
 
     /// Draw a graph using * for the pixels of the graph
-    fn draw_braille(&mut self) {
+    fn draw_braille(&mut self, g: usize) {
         let mut i = 0;
-        while i < self.y_values.len() - 1 {
-            let y1 = (self.draw_height * 3) - (self.y_values[i] as usize) - 1;
+        while i < self.y_values[g].len() - 1 {
+            let y1 = (self.draw_height * 3) - (self.y_values[g][i] as usize) - 1;
             let y1_abs = y1 / 3;
-            let y2 = (self.draw_height * 3) - (self.y_values[i + 1] as usize) - 1;
+            let y2 = (self.draw_height * 3) - (self.y_values[g][i + 1] as usize) - 1;
             let y2_abs = y2 / 3;
 
             if y1_abs == y2_abs {

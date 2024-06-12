@@ -48,6 +48,12 @@ Specify a height for the output.
 If not specified, it will attempt to determine the TTY height and use that.
 If it cannot be automatically determined, it will fail.
 
+.IP "\fB--color\fR \fIyes\fR|\fIno\fR"
+Enable or disable colors, by default color will be enabled if it looks like a tty is connected.
+
+It can therefore be nice to use \fB--color yes\fR
+if you are piping the output into another program that supports colors.
+
 .SH EXAMPLES
 
 The simplest version is if you have a text file of values

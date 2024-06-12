@@ -37,6 +37,7 @@ fn build_graph(x_values: &Vec<f64>, y_values: &Vec<f64>, opts: &OptsBuilder) -> 
     let opts = opts.clone().build();
 
     let mut gb = GraphBuilder::new(&x_values, &y_values, opts.width, opts.height);
+    gb.color(opts.color);
     gb.axis(!opts.silent);
     gb.graph_type(opts.graph_type.clone());
     if opts.cut {
