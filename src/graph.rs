@@ -5,30 +5,58 @@ const ASCII_3: char = '╰';
 const ASCII_4: char = '╮';
 const ASCII_7: char = '╯';
 
-/// Convenience function for converting a bitstring to a 6dot braille unicode character
+/// Convenience function for converting a bitstring to a 6dot braille unicode character (brc: braille char)
 ///
 /// # Arguments
 ///
 /// - `i` - Bitstring, representing the dots of the braille character as below:
-///         3  6 | 4  8
-///         2  5 | 3  7
-///         1  4 | 2  6
-///              | 1  5
+///         1  4 | 1  4
+///         2  5 | 2  5
+///         3  6 | 3  6
+///              | 7  8
 ///         If this only supported the 6dot, it could have used u8
+///         the brr function is useful for mapping a sensible way to use dot8, to the actual format
 /// - `btype` - Which braile variant the bitstring represents (dot6 or dot8)
-pub fn brc(i: u32, btype: &BrailleType) -> char {
-    let braille_unicode_offset: u32 = match btype {
-        BrailleType::dot6 => 0x2800,
-        BrailleType::dot8 => 0x2840,
-    };
-    let max = match btype {
-        BrailleType::dot6 => 64,
-        BrailleType::dot8 => 255,
-    };
-    if i < max {
-        std::char::from_u32(braille_unicode_offset + i as u32).unwrap()
+pub fn brc(i: u32) -> char {
+    const BRAILLE_UNICODE_OFFSET: u32 = 0x2800;
+    if i == 0 {
+        ' '
+    } else if i < 255 {
+        std::char::from_u32(BRAILLE_UNICODE_OFFSET + i as u32).unwrap()
     } else {
         ' '
+    }
+}
+
+/// Map sensible braille mapping to legacy (actual) mapping (brr : braille real)
+fn brr(i: usize, btype: &BrailleType) -> usize {
+    match btype {
+        BrailleType::dot6 => i,
+        BrailleType::dot8 => match i {
+            3 => 6,
+            4 => 3,
+            5 => 4,
+            6 => 5,
+            _ => i,
+        },
+    }
+}
+
+enum Pixel {
+    Char(char),
+    Braille(u32),
+}
+
+impl std::fmt::Display for Pixel {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Pixel::Char(c) => format!("{}", c),
+                Pixel::Braille(i) => format!("{}", brc(*i)),
+            }
+        )
     }
 }
 
@@ -489,25 +517,24 @@ impl GraphBuilder {
             let y2 = (self.draw_height * y_scale) - (self.y_values[g][i + 1] as usize) - 1;
             let y2_abs = y2 / y_scale;
 
+            let pxx1 = 1 << brr(y1 % y_scale, &btype);
+            let pxx2 = 1 << brr((y2 % y_scale) + y_scale, &btype);
             if y1_abs == y2_abs {
-                let pxx = (1 << (y1 % y_scale)) | (1 << ((y2 % y_scale) + y_scale));
                 self.draw(
                     i / x_scale,
                     y1_abs,
-                    self.color_pixel(brc(pxx, &btype), |px| GraphPixel::Green(px)),
+                    self.color_pixel(brc(pxx1 | pxx2), |px| GraphPixel::Green(px)),
                 );
             } else {
-                let pxx1 = 1 << (y1 % y_scale);
                 self.draw(
                     i / x_scale,
                     y1_abs,
-                    self.color_pixel(brc(pxx1, &btype), |px| GraphPixel::Green(px)),
+                    self.color_pixel(brc(pxx1), |px| GraphPixel::Green(px)),
                 );
-                let pxx2 = 1 << ((y2 % y_scale) + y_scale);
                 self.draw(
                     i / x_scale,
                     y2_abs,
-                    self.color_pixel(brc(pxx2, &btype), |px| GraphPixel::Green(px)),
+                    self.color_pixel(brc(pxx2), |px| GraphPixel::Green(px)),
                 );
             }
             i += 2;
