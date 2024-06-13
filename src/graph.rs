@@ -29,19 +29,15 @@ pub fn brc(i: u32) -> char {
 }
 
 /// Map sensible braille mapping to legacy (actual) mapping (brr : braille real)
-fn brr(i: usize, btype: &BrailleType) -> usize {
+fn brr(i: u32, btype: &BrailleType) -> u32 {
     match btype {
-        BrailleType::dot6 => i,
-        BrailleType::dot8 => match i {
-            3 => 6,
-            4 => 3,
-            5 => 4,
-            6 => 5,
-            _ => i,
-        },
+        BrailleType::Dot6 => i,
+        // Keep bits 0, 1, 2 and 7, move bit 3 to bit 6, and left shift bits 4, 5 and 6
+        BrailleType::Dot8 => (i & 135) | ((i & 8) << 3) | ((i & 112) >> 1),
     }
 }
 
+#[derive(Clone)]
 enum Pixel {
     Char(char),
     Braille(u32),
@@ -100,8 +96,8 @@ impl<T: std::fmt::Display> std::fmt::Display for GraphPixel<T> {
 
 #[derive(PartialEq, Clone)]
 pub enum BrailleType {
-    dot6,
-    dot8,
+    Dot6,
+    Dot8,
 }
 
 /// Available options for how the graph should look
@@ -134,7 +130,7 @@ impl GraphType {
 #[allow(dead_code)]
 pub struct GraphBuilder {
     /// A array of pixels, this will ultimately be turned to a string, is initialized to width * height
-    elements: Vec<GraphPixel<char>>,
+    elements: Vec<GraphPixel<Pixel>>,
     /// Width of canvas
     width: usize,
     /// Height of canvas
@@ -237,9 +233,9 @@ impl GraphBuilder {
     /// If you want to only see the "current state", you should clone first!
     pub fn build(&mut self) -> String {
         if self.cut_overflow {
-            if self.graph_type == GraphType::Braille(BrailleType::dot6) {
+            if self.graph_type == GraphType::Braille(BrailleType::Dot6) {
                 self.keep_tail(self.draw_width * 2);
-            } else if self.graph_type == GraphType::Braille(BrailleType::dot8) {
+            } else if self.graph_type == GraphType::Braille(BrailleType::Dot8) {
                 self.keep_tail(self.draw_width * 2);
             } else {
                 self.keep_tail(self.draw_width);
@@ -265,20 +261,20 @@ impl GraphBuilder {
             self.draw_axis(
                 min_y,
                 max_y,
-                GraphPixel::Normal(ASCII_1),
-                GraphPixel::Normal(ASCII_0),
-                GraphPixel::Normal('└'),
-                GraphPixel::Normal('┌'),
-                GraphPixel::Normal('┘'),
-                GraphPixel::Normal('┐'),
+                GraphPixel::Normal(Pixel::Char(ASCII_1)),
+                GraphPixel::Normal(Pixel::Char(ASCII_0)),
+                GraphPixel::Normal(Pixel::Char('└')),
+                GraphPixel::Normal(Pixel::Char('┌')),
+                GraphPixel::Normal(Pixel::Char('┘')),
+                GraphPixel::Normal(Pixel::Char('┐')),
             );
         }
 
         // Run a second time after axis has been calculated properly
         if self.cut_overflow {
-            if self.graph_type == GraphType::Braille(BrailleType::dot6) {
+            if self.graph_type == GraphType::Braille(BrailleType::Dot6) {
                 self.keep_tail(self.draw_width * 2);
-            } else if self.graph_type == GraphType::Braille(BrailleType::dot8) {
+            } else if self.graph_type == GraphType::Braille(BrailleType::Dot8) {
                 self.keep_tail(self.draw_width * 2);
             } else {
                 self.keep_tail(self.draw_width);
@@ -296,9 +292,9 @@ impl GraphBuilder {
 
         // Scale the data
         let mut scale_height = self.draw_height;
-        if self.graph_type == GraphType::Braille(BrailleType::dot6) {
+        if self.graph_type == GraphType::Braille(BrailleType::Dot6) {
             scale_height = self.draw_height * 3;
-        } else if self.graph_type == GraphType::Braille(BrailleType::dot8) {
+        } else if self.graph_type == GraphType::Braille(BrailleType::Dot8) {
             scale_height = self.draw_height * 4;
         }
         let scale_factor = (scale_height - 1) as f64 / (max_y - min_y);
@@ -309,8 +305,8 @@ impl GraphBuilder {
         match self.graph_type {
             GraphType::Star => self.draw_star(0),
             GraphType::Ascii => self.draw_ascii(0),
-            GraphType::Braille(BrailleType::dot6) => self.draw_braille(0),
-            GraphType::Braille(BrailleType::dot8) => self.draw_braille(0),
+            GraphType::Braille(BrailleType::Dot6) => self.draw_braille(0),
+            GraphType::Braille(BrailleType::Dot8) => self.draw_braille(0),
         }
 
         self.to_string()
@@ -322,8 +318,8 @@ impl GraphBuilder {
     fn downsample(&mut self) {
         for g in 0..self.y_values.len() {
             let mut scale_width = self.draw_width;
-            if self.graph_type == GraphType::Braille(BrailleType::dot6)
-                || self.graph_type == GraphType::Braille(BrailleType::dot8)
+            if self.graph_type == GraphType::Braille(BrailleType::Dot6)
+                || self.graph_type == GraphType::Braille(BrailleType::Dot8)
             {
                 scale_width *= 2;
             }
@@ -355,9 +351,9 @@ impl GraphBuilder {
 
     // Method that takes a closure to decide which GraphPixel variant to create
     // A more customizable variant of the color! macro
-    fn color_pixel<F>(&self, px: char, creator: F) -> GraphPixel<char>
+    fn color_pixel<F>(&self, px: Pixel, creator: F) -> GraphPixel<Pixel>
     where
-        F: FnOnce(char) -> GraphPixel<char>,
+        F: FnOnce(Pixel) -> GraphPixel<Pixel>,
     {
         if self.enable_color {
             creator(px)
@@ -373,7 +369,7 @@ impl GraphBuilder {
     /// * `x` - X-position of pixel
     /// * `y` - Y-position of pixel
     /// * `px` - The pixel to set
-    fn draw_exact(&mut self, x: usize, y: usize, px: GraphPixel<char>) {
+    fn draw_exact(&mut self, x: usize, y: usize, px: GraphPixel<Pixel>) {
         let pos = y * self.width + x;
         self.elements[pos] = px;
     }
@@ -385,7 +381,7 @@ impl GraphBuilder {
     /// * `x` - Relative X-position of pixel
     /// * `y` - Relative Y-position of pixel
     /// * `px` - The pixel to set
-    fn draw(&mut self, x: usize, y: usize, px: GraphPixel<char>) {
+    fn draw(&mut self, x: usize, y: usize, px: GraphPixel<Pixel>) {
         let pos = (y + self.row_offset) * self.width + (x + self.col_offset);
         self.elements[pos] = px;
     }
@@ -404,12 +400,12 @@ impl GraphBuilder {
         &mut self,
         min_y: f64,
         max_y: f64,
-        c1: GraphPixel<char>,
-        c2: GraphPixel<char>,
-        c3: GraphPixel<char>,
-        c4: GraphPixel<char>,
-        c5: GraphPixel<char>,
-        c6: GraphPixel<char>,
+        c1: GraphPixel<Pixel>,
+        c2: GraphPixel<Pixel>,
+        c3: GraphPixel<Pixel>,
+        c4: GraphPixel<Pixel>,
+        c5: GraphPixel<Pixel>,
+        c6: GraphPixel<Pixel>,
     ) {
         let mut y_ticks: Vec<String> = Vec::with_capacity(self.height);
         let mut x_offset: usize = 0;
@@ -427,7 +423,7 @@ impl GraphBuilder {
             self.elements[i * self.width + x_offset] = c1.clone();
             self.elements[i * self.width + self.width - 1] = c1.clone();
             for (j, c) in y_ticks[i].chars().enumerate() {
-                self.elements[i * self.width + j] = GraphPixel::Normal(c);
+                self.elements[i * self.width + j] = GraphPixel::Normal(Pixel::Char(c));
             }
         }
         for i in 1 + x_offset..self.width - 1 {
@@ -452,7 +448,11 @@ impl GraphBuilder {
     fn draw_star(&mut self, g: usize) {
         for i in 0..self.y_values[g].len() {
             let y = self.draw_height - (self.y_values[g][i] as usize) - 1;
-            self.draw(i, y, self.color_pixel('*', |px| GraphPixel::Green(px)));
+            self.draw(
+                i,
+                y,
+                self.color_pixel(Pixel::Char('*'), |px| GraphPixel::Green(px)),
+            );
         }
     }
 
@@ -462,12 +462,12 @@ impl GraphBuilder {
             self.draw_exact(
                 self.col_offset - 1,
                 self.draw_height - self.y_values[g][0] as usize,
-                self.color_pixel('├', |px| GraphPixel::Green(px)),
+                self.color_pixel(Pixel::Char('├'), |px| GraphPixel::Green(px)),
             );
             self.draw_exact(
                 self.width - 1,
                 self.draw_height - self.y_values[g][self.y_values[g].len() - 1] as usize,
-                self.color_pixel('┤', |px| GraphPixel::Green(px)),
+                self.color_pixel(Pixel::Char('┤'), |px| GraphPixel::Green(px)),
             );
         }
         for i in 0..self.y_values[g].len() {
@@ -479,18 +479,46 @@ impl GraphBuilder {
             };
 
             if y1 == y2 {
-                self.draw(i, y1, self.color_pixel(ASCII_0, |px| GraphPixel::Green(px)));
+                self.draw(
+                    i,
+                    y1,
+                    self.color_pixel(Pixel::Char(ASCII_0), |px| GraphPixel::Green(px)),
+                );
             } else if y1 > y2 {
-                self.draw(i, y1, self.color_pixel(ASCII_7, |px| GraphPixel::Green(px)));
-                self.draw(i, y2, self.color_pixel(ASCII_2, |px| GraphPixel::Green(px)));
+                self.draw(
+                    i,
+                    y1,
+                    self.color_pixel(Pixel::Char(ASCII_7), |px| GraphPixel::Green(px)),
+                );
+                self.draw(
+                    i,
+                    y2,
+                    self.color_pixel(Pixel::Char(ASCII_2), |px| GraphPixel::Green(px)),
+                );
                 for j in (y2 + 1)..y1 {
-                    self.draw(i, j, self.color_pixel(ASCII_1, |px| GraphPixel::Green(px)));
+                    self.draw(
+                        i,
+                        j,
+                        self.color_pixel(Pixel::Char(ASCII_1), |px| GraphPixel::Green(px)),
+                    );
                 }
             } else {
-                self.draw(i, y1, self.color_pixel(ASCII_4, |px| GraphPixel::Green(px)));
-                self.draw(i, y2, self.color_pixel(ASCII_3, |px| GraphPixel::Green(px)));
+                self.draw(
+                    i,
+                    y1,
+                    self.color_pixel(Pixel::Char(ASCII_4), |px| GraphPixel::Green(px)),
+                );
+                self.draw(
+                    i,
+                    y2,
+                    self.color_pixel(Pixel::Char(ASCII_3), |px| GraphPixel::Green(px)),
+                );
                 for j in (y1 + 1)..y2 {
-                    self.draw(i, j, self.color_pixel(ASCII_1, |px| GraphPixel::Green(px)));
+                    self.draw(
+                        i,
+                        j,
+                        self.color_pixel(Pixel::Char(ASCII_1), |px| GraphPixel::Green(px)),
+                    );
                 }
             }
         }
@@ -503,10 +531,10 @@ impl GraphBuilder {
         let x_scale = 2;
 
         let btype = self.graph_type.btype();
-        if self.graph_type == GraphType::Braille(BrailleType::dot6) {
+        if self.graph_type == GraphType::Braille(BrailleType::Dot6) {
             y_scale = 3;
         }
-        if self.graph_type == GraphType::Braille(BrailleType::dot8) {
+        if self.graph_type == GraphType::Braille(BrailleType::Dot8) {
             y_scale = 4;
         }
 
@@ -517,24 +545,24 @@ impl GraphBuilder {
             let y2 = (self.draw_height * y_scale) - (self.y_values[g][i + 1] as usize) - 1;
             let y2_abs = y2 / y_scale;
 
-            let pxx1 = 1 << brr(y1 % y_scale, &btype);
-            let pxx2 = 1 << brr((y2 % y_scale) + y_scale, &btype);
+            let pxx1 = brr(1 << y1 % y_scale, &btype);
+            let pxx2 = brr(1 << (y2 % y_scale) + y_scale, &btype);
             if y1_abs == y2_abs {
                 self.draw(
                     i / x_scale,
                     y1_abs,
-                    self.color_pixel(brc(pxx1 | pxx2), |px| GraphPixel::Green(px)),
+                    self.color_pixel(Pixel::Braille(pxx1 | pxx2), |px| GraphPixel::Green(px)),
                 );
             } else {
                 self.draw(
                     i / x_scale,
                     y1_abs,
-                    self.color_pixel(brc(pxx1), |px| GraphPixel::Green(px)),
+                    self.color_pixel(Pixel::Braille(pxx1), |px| GraphPixel::Green(px)),
                 );
                 self.draw(
                     i / x_scale,
                     y2_abs,
-                    self.color_pixel(brc(pxx2), |px| GraphPixel::Green(px)),
+                    self.color_pixel(Pixel::Braille(pxx2), |px| GraphPixel::Green(px)),
                 );
             }
             i += 2;

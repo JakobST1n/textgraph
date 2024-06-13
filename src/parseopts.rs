@@ -118,10 +118,10 @@ pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progna
                     opts.graph_type = GraphType::Ascii;
                 }
                 "braille" | "braille6" => {
-                    opts.graph_type = GraphType::Braille(BrailleType::dot6);
+                    opts.graph_type = GraphType::Braille(BrailleType::Dot6);
                 }
                 "braille8" => {
-                    opts.graph_type = GraphType::Braille(BrailleType::dot8);
+                    opts.graph_type = GraphType::Braille(BrailleType::Dot8);
                 }
                 t => {
                     println!(
@@ -161,7 +161,7 @@ pub fn parseopt(opts: &mut OptsBuilder, arg: &str, value: Option<String>, progna
             opts.graph_type = GraphType::Ascii;
         }
         "b" | "braille" => {
-            opts.graph_type = GraphType::Braille(BrailleType::dot6);
+            opts.graph_type = GraphType::Braille(BrailleType::Dot6);
         }
         "c" | "cut" => {
             opts.cut = true;
