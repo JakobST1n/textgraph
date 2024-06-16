@@ -1,8 +1,11 @@
-use std::io::{self, BufRead, Write};
+#[cfg(feature = "libc")]
+use std::io::Write;
+use std::io::{self, BufRead};
 use std::str::FromStr;
 use textgraph::graph::GraphBuilder;
 use textgraph::parseopts::{parseopts, OptsBuilder};
 
+#[cfg(feature = "libc")]
 extern "C" fn handle_sigint(_sig: i32) {
     print!("\x1b[?25h");
     print!("\x1B[?1049l");
@@ -11,6 +14,7 @@ extern "C" fn handle_sigint(_sig: i32) {
 }
 
 /// Set a signalhandler for swapping back to the the main screen on sigint
+#[cfg(feature = "libc")]
 fn set_filter_signalhandler() {
     let mut sig_action: libc::sigaction = unsafe { std::mem::zeroed() };
     sig_action.sa_flags = 0;
@@ -56,9 +60,12 @@ fn build_graph(x_values: &Vec<f64>, y_values: &Vec<f64>, opts: &OptsBuilder) -> 
 ///
 /// * `opts` -  textgraph::parseopts::OptBuilder
 fn filter(opts: OptsBuilder) {
-    set_filter_signalhandler();
-    print!("\x1b[?1049h");
-    print!("\x1b[?25l");
+    #[cfg(feature = "libc")]
+    {
+        set_filter_signalhandler();
+        print!("\x1b[?1049h");
+        print!("\x1b[?25l");
+    }
 
     let mut x_values: Vec<f64> = Vec::new();
     let mut y_values: Vec<f64> = Vec::new();
@@ -73,6 +80,7 @@ fn filter(opts: OptsBuilder) {
         y_values.push(y);
         x_values.push(i);
 
+        #[cfg(feature = "ansi")]
         print!("\x1B[2J\x1B[H");
         println!("{}", build_graph(&x_values, &y_values, &opts));
     }

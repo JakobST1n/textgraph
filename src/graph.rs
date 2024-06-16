@@ -82,12 +82,33 @@ impl<T: std::fmt::Display> std::fmt::Display for GraphPixel<T> {
             "{}",
             match self {
                 GraphPixel::Normal(c) => format!("{}", c),
+
+                #[cfg(feature = "ansi")]
                 GraphPixel::Green(c) => format!("\x1b[32m{}\x1b[0m", c),
+                #[cfg(feature = "ansi")]
                 GraphPixel::Blue(c) => format!("\x1b[34m{}\x1b[0m", c),
+                #[cfg(feature = "ansi")]
                 GraphPixel::Red(c) => format!("\x1b[31m{}\x1b[0m", c),
+                #[cfg(feature = "ansi")]
                 GraphPixel::Yellow(c) => format!("\x1b[33m{}\x1b[0m", c),
+                #[cfg(feature = "ansi")]
                 GraphPixel::Magenta(c) => format!("\x1b[33m{}\x1b[0m", c),
+                #[cfg(feature = "ansi")]
                 GraphPixel::Cyan(c) => format!("\x1b[36m{}\x1b[0m", c),
+
+                #[cfg(not(feature = "ansi"))]
+                GraphPixel::Green(c) => format!("{}, c),
+                #[cfg(not(feature = "ansi"))]
+                GraphPixel::Blue(c) => format!("{}, c),
+                #[cfg(not(feature = "ansi"))]
+                GraphPixel::Red(c) => format!("{}, c),
+                #[cfg(not(feature = "ansi"))]
+                GraphPixel::Yellow(c) => format!("{}, c),
+                #[cfg(not(feature = "ansi"))]
+                GraphPixel::Magenta(c) => format!("{}, c),
+                #[cfg(not(feature = "ansi"))]
+                GraphPixel::Cyan(c) => format!("{}, c),
+
                 GraphPixel::Blank => String::from(" "),
             }
         )

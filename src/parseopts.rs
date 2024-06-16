@@ -40,18 +40,30 @@ impl OptsBuilder {
     pub fn build(self) -> Opts {
         Opts {
             width: self.width.unwrap_or_else(|| {
+                #[cfg(feature = "libc")]
                 if let Ok((width, _)) = crate::term::get_terminal_size() {
                     width as usize
                 } else {
-                    println!("Could not determine TTY columns, specify with -r");
+                    println!("Could not determine TTY columns, specify with -w");
+                    std::process::exit(1);
+                }
+                #[cfg(not(feature = "libc"))]
+                {
+                    println!("Not compiled with libc, cannot detect columns, specify with -w");
                     std::process::exit(1);
                 }
             }),
             height: self.height.unwrap_or_else(|| {
+                #[cfg(feature = "libc")]
                 if let Ok((_, height)) = crate::term::get_terminal_size() {
                     height as usize - 1
                 } else {
                     println!("Could not determine TTY rows, specify with -h");
+                    std::process::exit(1);
+                }
+                #[cfg(not(feature = "libc"))]
+                {
+                    println!("Not compiled with libc, cannot detect rows, specify with -h");
                     std::process::exit(1);
                 }
             }),
