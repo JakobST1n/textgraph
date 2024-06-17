@@ -15,10 +15,11 @@ Version:        %{package_version}
 Release:        %{package_release}
 Summary:        Text graphing utility
 
-#License:        GPLv3
+License:        GPLv3
 Source:        	%{name}-%{version}.tar.gz
 
 BuildRequires:  cargo-rpm-macros >= 24
+BuildRequires:  rust-libc-devel
 
 %description
 Text graphing utility
@@ -28,21 +29,13 @@ Text graphing utility
 %cargo_prep
 
 %build
-# This is not best practice, but it was somewhat annoying to actually get all
-# dependencies vendored/packaged properly.
-# currently this app doesn't have any cargo dependencies, but keeping it for reference
-#sed -i '/^\[source\.crates-io\]/,/^$/d' %{cargo_config}
-#sed -i '/^\[source\.local-registry\]/,/^$/d' %{cargo_config}
-#sed -i '/^\[net\]/,/^$/d' %{cargo_config}
-#echo "[net]" >> %{cargo_config}
-#echo "git-fetch-with-cli = true" >> %{cargo_config}
 %cargo_build
 
 %install
 %cargo_install
 
 mkdir -p %{buildroot}%{_mandir}/man1
-install tg.1 %{buildroot}%{_mandir}/man1/tg.1
+install textgraph.1 %{buildroot}%{_mandir}/man1/textgraph.1
 
 %if %{with check}
 %check
@@ -51,8 +44,8 @@ install tg.1 %{buildroot}%{_mandir}/man1/tg.1
 
 %files
 %doc README.md
-%{_bindir}/tg
-%{_mandir}/man1/tg.1.gz
+%{_bindir}/textgraph
+%{_mandir}/man1/textgraph.1.gz
 
 %changelog
 %autochangelog

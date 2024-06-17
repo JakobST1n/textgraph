@@ -9,22 +9,24 @@ by piping data through it.
 It was written because I sometimes have the need to
 watch some state in a sql table for a short while.
 
-The documentation is in the manual file `tg.1`.
+The documentation is in the manual file `textgraph.1`.
 
 It is only tested with glibc and terminals with ansi escape code support.
 
 ## Usage
-You can compile it with `cargo build --release`,
-there is also a script in `packaging` which can be used to make a `.deb`.
+There is a script in `packaging` which can be used to make a `.deb`.
 If you are on a debian based distro, you should be able to run `./packaging/package-debian.sh`.
 Then a `textgraph.deb` file should be made somewhere in `/tmp/`.
 
-There is a spec file for rpms as well, but I haven't gotten around to making a script to build for that.
+There is a script in `packaging` which can be used to make a `.rpm`.
+If you are on a rpm based distro, you should be able to run `./packaging/package-fedora.sh`.
+Then a `textgraph-<buildinfo>.rpm` should be build in `~/rpmbuild/RPMS/x86_64/`.
 
+You can compile it with `cargo build --release`.
 If you compile with `cargo build --release`, you can copy it to your path, e.g. 
 ```
-sudo install target/release/textgraph /usr/local/bin/tg
-sudo install tg.1 /usr/share/man/man1/tg.1
+sudo install target/release/textgraph /usr/local/bin/textgraph
+sudo install textgraph.1 /usr/share/man/man1/textgraph.1
 ```
 
 ## Example 1
@@ -113,76 +115,77 @@ Example of a simple sinusoid
 
 ## Manual
 For reference, this is a translation of the manual page.
-Best is to check to manual page itself, not the README `man -l tg.1`.
+Best is to check to manual page itself, not the README `man -l textgraph.1`.
 ```
-TG(1)                       General Commands Manual                      TG(1)
-
-
+TEXTGRAPH(1)                General Commands Manual               TEXTGRAPH(1)
 
 name
-       tg - TermGraph - Text graphing utility
+       TextGraph - Text graphing utility
 
 SYNOPSIS
-       tg  [-s|--silent]  [-l|--last-n  N]  [-h|--height N] [-w|--width N] [-t
-       type]
-
+       textgraph [OPTIONS] [input_file]
 
 DESCRIPTION
-       tg TermGraph is a utility for graphing
-
+       textgraph TermGraph is a utility for graphing
 
 OPTIONS
-       -h, --help
-              Display help information.
-
+       --help Display help information.
 
        -s, --silent
               Disable distracting elements, such as axis and non-graph text.
 
+       -n, --last-n count
+              If  specified,  only  the  newest count samples will be plotted.
+              This can be useful if you want to follow the latest state  of  a
+              graph that is piped in.
+
+       -c, --cut
+              This  is a special case of --last-n. Where the number of columns
+              --width will be used for the count.
 
        -a, --ascii
               Shorthand for -t ascii, if  multiple  options  setting  mode  is
               specified, the last will likely be respected.
 
-
        -b, --braille
               Shorthand  for  -t  braille, if multiple options setting mode is
               specified, the last will likely be respected.
 
+       -t star|ascii|braille|braille6|braille8
+              The type of graph to draw, it defaults to  star,  which  is  the
+              fastest one.
 
-       -n, --last-n count
-              If specified, only the newest count  samples  will  be  plotted.
-              This  can  be useful if you want to follow the latest state of a
-              graph that is piped in.
+              star Scatter plot using only the '*' character.
 
+              ascii Ascii is slightly prettier to look at.
 
-       -c, --cut
-              This is a special case of --last-n. Where the number of  columns
-              --width will be used for the count.
+              braille, braille6 Uses braille characters to draw higher resolu‐
+              tion plots.
 
-
-       -t type
-              The  type  of  graph  to draw, it defaults to star, which is the
-              fastest one.  Options are star, ascii  and  braille.   Ascii  is
-              slightly prettier to look at.
-
+              braille8 This is the most scatter-plot-ish with the highest res‐
+              olution, but also the most buggy.
 
        -w, --width width
               Specify  a  width for the output.  If not specified, it will at‐
               tempt to determine the TTY width and use that.  If it cannot  be
               automatically determined, it will fail.
 
-
        -h, --height height
               Specify  a height for the output.  If not specified, it will at‐
               tempt to determine the TTY height and use that.  If it cannot be
               automatically determined, it will fail.
 
+       --color yes|no
+              Enable or disable colors, by default color will be enabled if it
+              looks like a tty is connected.
+
+              It can therefore be nice to use --color yes if  you  are  piping
+              the output into another program that supports colors.
 
 EXAMPLES
        The simplest version is if you have a text file of values
 
-              cat file | tg
+              cat file | textgraph
 
-                                  2024-06-08                             TG(1)
+                                  2024-06-08                      TEXTGRAPH(1)
 ```

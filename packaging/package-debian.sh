@@ -17,8 +17,8 @@ mandir=${dir}/usr/share/man/man1
 mkdir -p ${mandir}
 
 cp -r packaging/DEBIAN ${dir}/DEBIAN
-cp target/release/textgraph ${bindir}/tg
-cp tg.1 ${mandir}/tg.1
+cp target/release/textgraph ${bindir}/textgraph
+cp textgraph.1 ${mandir}/textgraph.1
 
 cd ${tmpdir}
 dpkg-deb --build textgraph
