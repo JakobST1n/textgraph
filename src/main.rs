@@ -76,9 +76,15 @@ fn filter(opts: OptsBuilder) {
         i += 1.0;
         let line = line.expect("Could not read...");
 
-        let y = f64::from_str(line.as_str()).expect("TG7 invalid number");
-        y_values.push(y);
-        x_values.push(i);
+        let y = f64::from_str(line.as_str());
+        if let Err(_) =  y {
+            print!("Could not parse line as f64.");
+            continue;
+        }
+        if let Ok(y) =  y {
+            y_values.push(y);
+            x_values.push(i);
+        }
 
         #[cfg(feature = "ansi")]
         print!("\x1B[2J\x1B[H");
