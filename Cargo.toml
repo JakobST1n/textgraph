@@ -1,13 +1,12 @@
 [package]
 name = "textgraph"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 
 [features]
 default = ["libc", "ansi"]
 ansi = []
-libc = ["dep:libc"]
+libc = []
 
 [dependencies]
-libc = { version = "0.2.155", optional = true }
 

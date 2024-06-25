@@ -1,12 +1,13 @@
-#[cfg(feature = "libc")]
-use std::io::Write;
 use std::io::{self, BufRead};
 use std::str::FromStr;
 use textgraph::graph::GraphBuilder;
 use textgraph::parseopts::{parseopts, OptsBuilder};
 
-#[cfg(feature = "libc")]
-extern "C" fn handle_sigint(_sig: i32) {
+#[cfg(all(feature = "libc", feature = "ansi"))]
+use std::io::Write;
+
+#[cfg(all(feature = "libc", feature = "ansi"))]
+extern "C" fn handle_sigint(_sig: std::os::raw::c_int) {
     print!("\x1b[?25h");
     print!("\x1B[?1049l");
     io::stdout().flush().unwrap();
@@ -14,21 +15,19 @@ extern "C" fn handle_sigint(_sig: i32) {
 }
 
 /// Set a signalhandler for swapping back to the the main screen on sigint
-#[cfg(feature = "libc")]
+#[cfg(all(feature = "libc", feature = "ansi"))]
 fn set_filter_signalhandler() {
-    let mut sig_action: libc::sigaction = unsafe { std::mem::zeroed() };
-    sig_action.sa_flags = 0;
-    sig_action.sa_sigaction = handle_sigint as usize;
-
     unsafe {
-        let mut signal_set = std::mem::zeroed();
-        libc::sigemptyset(&mut signal_set);
-        sig_action.sa_mask = signal_set;
+        let mut action: textgraph::term::SigAction = std::mem::zeroed();
+        action.sa_flags = 0;
+        action.sa_sigaction = handle_sigint as usize;
 
-        libc::sigaction(libc::SIGINT, &sig_action, std::ptr::null_mut());
-        libc::sigaction(libc::SIGKILL, &sig_action, std::ptr::null_mut());
-        libc::sigaction(libc::SIGTSTP, &sig_action, std::ptr::null_mut());
-        libc::sigaction(libc::SIGSTOP, &sig_action, std::ptr::null_mut());
+        textgraph::term::sigemptyset(&mut action.sa_mask);
+        textgraph::term::sigaction(15, &action, std::ptr::null_mut()); // 15 is SIGTERM
+        textgraph::term::sigaction(2, &action, std::ptr::null_mut()); //  2 is SIGINT
+        textgraph::term::sigaction(9, &action, std::ptr::null_mut()); //  9 is SIGKILL
+        textgraph::term::sigaction(20, &action, std::ptr::null_mut()); // 20 is SIGSTP
+        textgraph::term::sigaction(19, &action, std::ptr::null_mut()); // 19 is SIGSTOP
     }
 }
 
@@ -60,7 +59,7 @@ fn build_graph(x_values: &Vec<f64>, y_values: &Vec<f64>, opts: &OptsBuilder) -> 
 ///
 /// * `opts` -  textgraph::parseopts::OptBuilder
 fn filter(opts: OptsBuilder) {
-    #[cfg(feature = "libc")]
+    #[cfg(all(feature = "libc", feature = "ansi"))]
     {
         set_filter_signalhandler();
         print!("\x1b[?1049h");
@@ -77,11 +76,11 @@ fn filter(opts: OptsBuilder) {
         let line = line.expect("Could not read...");
 
         let y = f64::from_str(line.as_str());
-        if let Err(_) =  y {
+        if let Err(_) = y {
             print!("Could not parse line as f64.");
             continue;
         }
-        if let Ok(y) =  y {
+        if let Ok(y) = y {
             y_values.push(y);
             x_values.push(i);
         }

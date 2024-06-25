@@ -28,3 +28,21 @@ pub fn get_terminal_size() -> Result<(u16, u16), Error> {
     }
     Ok((ws.ws_col, ws.ws_row))
 }
+
+#[repr(C)]
+pub struct SigAction {
+    pub sa_sigaction: usize,
+    pub sa_mask: SigSet,
+    pub sa_flags: c_int,
+    pub sa_restorer: Option<unsafe extern "C" fn()>,
+}
+
+#[repr(C)]
+pub struct SigSet {
+    pub __val: [u64; 16],
+}
+
+extern "C" {
+    pub fn sigemptyset(set: *mut SigSet) -> c_int;
+    pub fn sigaction(signum: c_int, act: *const SigAction, oldact: *mut SigAction) -> c_int;
+}

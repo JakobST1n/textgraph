@@ -29,6 +29,22 @@ sudo install target/release/textgraph /usr/local/bin/textgraph
 sudo install textgraph.1 /usr/share/man/man1/textgraph.1
 ```
 
+### Features
+
+By default `libc` and `ansi` is enabled.
+
+The `libc` feature makes the program able to get the terminal size,
+and catch signals like SIGINT.
+The last part is needed if you want the program to use the alternate screen
+in filter-mode.
+It does not currently use the `libc`-crate, but it does use c-functions.
+
+The `ansi` feature enables the use of ansi escape codes,
+this is used for manipulating the terminal. 
+Like adding colors to the graph,
+and switching back and fourth from the alternate screen 
+(this will only happen when `libc` also is enabled).
+
 ## Example 1
 Some examples of the different modes, from the same input file with random numbers
 ### Star mode
